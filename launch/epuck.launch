@@ -1,0 +1,46 @@
+<launch>
+    <!-- Taken from epuck_controller.launch -->
+    <arg name="epuck_id"/>
+    <arg name="epuck_address" default="10:00:E8:C5:61:C9"/>
+    <arg name="epuck_name" default="epuck_robot_0"/>
+    <arg name="cam_en" default="false"/> <!-- When the camera is enabled you'll experience lower refresh rate (about 2.5 Hz)-->
+    <arg name="acc_en" default="true"/>
+    <arg name="prox_en" default="true"/>
+    <arg name="mot_pos_en" default="true"/>
+    <arg name="floor_en" default="false"/>
+    <arg name="mot_speed_en" default="true"/>
+    <arg name="mic_en" default="true"/>
+
+	<!---->
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control">
+        <param name="wheel_base" value="2" type="double" />
+
+        <group ns="input_dev">
+            <!--P object name (name) and topic name (value)-->
+            <param name="prox0" value="/proximity0" />
+            <param name="prox1" value="/proximity1" />
+            <param name="prox2" value="/proximity2" />
+        </group>
+
+        <group ns="output_dev">
+            <!--cmd_vel is a default output topic that is remapped later on-->
+            <!--give the controller a hint on the cmd_vel values used by the robot
+            diff_drive means linear.x and angular.z are used-->
+            <param name="robot_type" value="diff_drive" />
+            <!--P object to motor speed mapping-->
+            <param name="lw" value="leftMotorSpeed" />
+            <param name="rw" value="rightMotorSpeed" />
+            <!--P object name (name) and topic name (value)-->
+            <!--TODO: add led topics to epuck_driver_cpp-->
+            <param name="led0" value="/led0" />
+        </group>
+	</node>
+
+	<node pkg="rviz" type="rviz" name="rviz" />
+
+	<!--Keyboard remote control-->
+	<remap from="turtle1/cmd_vel" to="twist/cmd_vel" />
+	<node pkg="turtlesim" type="turtle_teleop_key" name="teleop_key" output="screen" />
+
+
+</launch>

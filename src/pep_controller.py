@@ -12,16 +12,134 @@
 # pep_controller - a generic robot controller that uses Pep, an (Enzymatic) Numerical P System simulato,r as backend
 
 import rospy
-from std_msgs.msg import String
+#from std_msgs.msg import String
+from geometry_msgs.msg import Twist # for cmd_vel topic
+import thread # for lock (mutex)
+
+##########################################################################
+# auxiliary definitions
+
+class RobotType():
+
+    """Enumeration of known types of robots. Each type of robot requires specific output (effector) values processing"""
+
+    diff_drive      = 1 # differential drive robot (e-puck, kephera)
+# end class RobotType
+
+##########################################################################
+# class definitions
+
+class Sensor():
+
+    """Class used to store a generic robot sensor
+    Provides thread block (during main thread read)"""
+
+    def __init__(self, pObject = None, topic=""):
+        self.pObject = pObject # initally string and later crossreferenced to a Pep P object
+        self.topic = ""
+        self.currentValue = None # should only be handled using setValue() (or read indirectly using pObject.value)
+        self.lock = thread.allocate_lock() # construct lock (mutex)
+
+    def setValue(self, newValue):
+        """Record a new sensor value
+
+        :newValue: new sensor reading"""
+
+        self.lock.acquire() # lock mutex
+        self.currentValue = newValue
+        self.lock.release() # unlock mutex
+    # end setValue()
+
+    def updatePobject(self):
+        """ Updates the value of the P object to the current value of this sensor reading """
+        self.lock.acquire() # lock mutex
+        self.pObject.value = self.currentValue
+        self.lock.release() # unlock mutex
+    # end updatePobject()
+# end class Sensor
+
+class Effector():
+
+    """Base effector class that is extended for specific effectors.
+    The main purpose of the class is to set a pattern of storing the current and previous output values in order to determine whether a command publish is necessary"""
+
+    def __init__(self, pObject = None):
+        self.pObject = pObject # initally string and later crossreferenced to a Pep P object
+        self.currentValue = None
+        self.previousValue = None
+
+    def isNewValue(self):
+        """Compares the previous and current values in order to determine whether they are different
+        :returns: True / False depending on whether the two values are identical (in the context of the type of the variables)"""
+
+        return self.currentValue == self.previousValue
+    # end isNewValue()
+
+    def setValue(self, newValue):
+        """Set a new current value
+
+        :newValue: A new output value for this effector"""
+        self.previousValue = self.currentValue
+        self.currentValue = newValue
+    # end setValue()
+
+# end class Effector
+
+class EffectorDiffDriveMovement(Effector):
+
+    """Differential drive movement effector
+    Converts a pair of motor speeds into a geometry_msgs.Twist message"""
+
+    def __init__(self, motorMin = 0, motorMax = 100, twistMaxLinearSpeed = 10, twistMaxAngularSpeed = 10):
+        Effector.__init__(self)
+        self.currentValue = Twist()
+        self.previousValue = Twist()
+
+        self.motorMin = 0 # robot specific minimum motor speed
+        self.motorMax = 100 # robot specific maximum motor speed
+        # TODO take the sign into account (-10 is ok for Twist speeds and is a maximum backward speed)
+        self.twistMaxLinearSpeed = 10 # user specified maximum linear speed
+        self.twistMaxAngularSpeed = 10 # user specified maximum linear speed
+
+    def setValueFromMotorSpeeds(self, leftMotorSpeed, rightMotorSpeed):
+        """Set a new current value by converting motor speeds to a Twist message
+
+        :leftMotorSpeed: robot specific motor speed
+        :rightMotorSpeed robot specific motor speed"""
+
+        newValue = Twist()
+        # TODO consult epuck_driver and docs for a real conversion formula
+        newValue.linear.x = (1 - (leftMotorSpeed - rightMotorSpeed) / (self.motorMax - self.motorMin)) * self.twistMaxLinearSpeed
+        newValue.angular.z = (leftMotorSpeed - rightMotorSpeed) / (self.motorMax - self.motorMin) * self.twistMaxLinearSpeed
+
+        self.setValue(newValue)
+    # end setValueFromMotorSpeeds()
+# end class EffectorDiffDriveMovement
+
+class Controller():
+
+    """Class that is used to store the current state of a generic robot within the Numeric P system controller"""
+
+    def __init__(self, robotType = RobotType.diff_drive):
+        self.sensors = {} # empty dictionary of sensors (Sensor objects)
+        self.effectors = {} # empty dictionary of effectors (Effector objects)
+        self.robotType = robotType # a generic description of the robot (diff_drive, quadcopter, ...)
+
+    def handleDistanceSensors(self, data, sensor_id):
+        """Distance sensor handler function that is called when receiving a message on a distance sensor topic"""
+        rospy.logdebug("recording new value from sensor %s" % sensor_id)
+        self.sensors[sensor_id].setValue(data)
+
+# end class Controller
 
 def pep_controller():
-    pub = rospy.Publisher('chatter', String, queue_size=10)
     rospy.init_node('pep_controller')
+    pubCmdVel = rospy.Publisher('~cmd_vel', Twist, queue_size=10)
     rate = rospy.Rate(10) # 10hz
     while not rospy.is_shutdown():
         hello_str = "hello world %s" % rospy.get_time()
         rospy.loginfo(hello_str)
-        pub.publish(hello_str)
+        pubCmdVel.publish(hello_str)
         rate.sleep()
 
 if __name__ == '__main__':
