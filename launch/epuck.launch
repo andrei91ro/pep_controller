@@ -1,8 +1,13 @@
 <launch>
     <!-- Taken from epuck_controller.launch -->
-    <arg name="epuck_id"/>
-    <arg name="epuck_address" default="10:00:E8:C5:61:C9"/>
+    <arg name="pep_input_file" default="input.pep"/>
+    <arg name="epuck_id" default="3580"/>
+    <arg name="epuck_address" default="10:00:E8:D3:AA:AA"/>
     <arg name="epuck_name" default="epuck_robot_0"/>
+    <arg name="is_single_robot" default="1" />
+    <arg name="xpos" default="0.0"/>
+    <arg name="ypos" default="0.0"/>
+    <arg name="theta" default="0.0"/>
     <arg name="cam_en" default="false"/> <!-- When the camera is enabled you'll experience lower refresh rate (about 2.5 Hz)-->
     <arg name="acc_en" default="true"/>
     <arg name="prox_en" default="true"/>
@@ -10,37 +15,68 @@
     <arg name="floor_en" default="false"/>
     <arg name="mot_speed_en" default="true"/>
     <arg name="mic_en" default="true"/>
+    <!-- Camera parameters: if you put -1 then a default value will be assigned. -->
+    <!-- Remember that the maximum buffer that the e-puck can handle is 3200 bytes. -->
+    <arg name="cam_width" default="-1" /> <!-- By default width = 160 -->
+    <arg name="cam_height" default="-1" />  <!-- By default height = 2 -->
+    <arg name="cam_zoom" default="-1" /> <!-- Can be 1 (default), 2, 4, 8 -->
+    <arg name="cam_mode" default="-1" /> <!-- 0=gray (default), 1=rgb565 -->
+    <arg name="cam_x_offset" default="-1" />  <!-- By default the slice will be centered. -->
+    <arg name="cam_y_offset" default="-1" />
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+        <param name="prox0" value="/proximity0" />
+        <param name="prox1" value="/proximity1" />
+        <param name="prox2" value="/proximity2" />
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <param name="robot_type" value="diff_drive" />
+        <!--P object to motor speed mapping-->
+        <group ns="cmd_vel">
+            <param name="lw" value="leftMotorSpeed" />
+            <param name="rw" value="rightMotorSpeed" />
+        </group>
+        <!--P object name (name) and topic name (value)-->
+        <!--TODO: add led topics to epuck_driver_cpp-->
+        <param name="led0" value="/led0" />
+    </group>
 
 	<!---->
 	<node pkg="pep_controller" type="pep_controller.py" name="pep_control">
-        <param name="wheel_base" value="2" type="double" />
-
-        <group ns="input_dev">
-            <!--P object name (name) and topic name (value)-->
-            <param name="prox0" value="/proximity0" />
-            <param name="prox1" value="/proximity1" />
-            <param name="prox2" value="/proximity2" />
-        </group>
-
-        <group ns="output_dev">
-            <!--cmd_vel is a default output topic that is remapped later on-->
-            <!--give the controller a hint on the cmd_vel values used by the robot
-            diff_drive means linear.x and angular.z are used-->
-            <param name="robot_type" value="diff_drive" />
-            <!--P object to motor speed mapping-->
-            <param name="lw" value="leftMotorSpeed" />
-            <param name="rw" value="rightMotorSpeed" />
-            <!--P object name (name) and topic name (value)-->
-            <!--TODO: add led topics to epuck_driver_cpp-->
-            <param name="led0" value="/led0" />
-        </group>
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
 	</node>
 
-	<node pkg="rviz" type="rviz" name="rviz" />
+    <node pkg="epuck_driver_cpp" type="epuck_driver_cpp" name="$(arg epuck_name)" output="screen">
+        <param name="epuck_id" value="$(arg epuck_id)"/>
+        <param name="epuck_address" value="$(arg epuck_address)"/>
+        <param name="epuck_name" value="$(arg epuck_name)"/>
+        <param name="xpos" value="$(arg xpos)"/>
+        <param name="ypos" value="$(arg ypos)"/>
+        <param name="theta" value="$(arg theta)"/>
+        <param name="camera" value="$(arg cam_en)"/>
+        <param name="accelerometer" value="$(arg acc_en)"/>
+        <param name="proximity" value="$(arg prox_en)"/>
+        <param name="motor_position" value="$(arg mot_pos_en)"/>
+        <param name="floor" value="$(arg floor_en)"/>
+        <param name="motor_speed" value="$(arg mot_speed_en)"/>
+        <param name="microphone" value="$(arg mic_en)"/>
+        <param name="cam_width" value="$(arg cam_width)"/>
+        <param name="cam_height" value="$(arg cam_height)"/>
+        <param name="cam_zoom" value="$(arg cam_zoom)"/>
+        <param name="cam_mode" value="$(arg cam_mode)"/>
+        <param name="cam_x_offset" value="$(arg cam_x_offset)"/>
+        <param name="cam_y_offset" value="$(arg cam_y_offset)"/>
+    </node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
 
 	<!--Keyboard remote control-->
-	<remap from="turtle1/cmd_vel" to="twist/cmd_vel" />
-	<node pkg="turtlesim" type="turtle_teleop_key" name="teleop_key" output="screen" />
+	<!--<remap from="turtle1/cmd_vel" to="twist/cmd_vel" />-->
+	<!--<node pkg="turtlesim" type="turtle_teleop_key" name="teleop_key" output="screen" />-->
 
 
 </launch>
