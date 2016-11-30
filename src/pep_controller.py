@@ -11,6 +11,7 @@
 
 # pep_controller - a generic robot controller that uses Pep, an (Enzymatic) Numerical P System simulato,r as backend
 
+from __future__ import print_function, with_statement, division
 import rospy
 #from std_msgs.msg import String
 from geometry_msgs.msg import Twist # for cmd_vel topic
@@ -53,7 +54,7 @@ class Sensor():
 
     def updatePobject(self):
         """ Updates the value of the P object to the current value of this sensor reading """
-        if (type(self.currentValue) != list):
+        if (type(self.currentValue) == None):
             rospy.loginfo("no sensor reading from topic %s" % self.topic)
             # skip this P object update request
             return
@@ -64,6 +65,23 @@ class Sensor():
         self.lock.release() # unlock mutex
     # end updatePobject()
 # end class Sensor
+
+class SensorProximity(Sensor):
+
+    """Class used to model a proximity sensor that records values from the 'sensor_msgs.Range' topic"""
+
+    def __init__(self, pObjects = None, topic=""):
+        Sensor.__init__(self, pObjects, topic)
+        self.currentValue = [0.0] # sensor_msgs.Range.range (float)
+
+    def updatePobject(self):
+        """ Updates the value of the P object to the current value of the proximity sensor reading """
+
+        self.lock.acquire() # lock mutex
+        self.pObjects[0].value = self.currentValue[0] # only one numeric value (and associated P object)
+        self.lock.release() # unlock mutex
+    # end updatePobject()
+# end class SensorProximity
 
 class Effector():
 
@@ -181,7 +199,7 @@ class Controller():
     def handleDistanceSensors(self, data, sensor_id):
         """Distance sensor handler function that is called when receiving a message on a distance sensor topic"""
         rospy.logdebug("recording new value from sensor %s" % sensor_id)
-        self.sensors[sensor_id].setValue(data)
+        self.sensors[sensor_id].setValue([data.range])
     # end handleDistanceSensors()
 
     def runControlStep(self):
@@ -202,13 +220,15 @@ class Controller():
         for effector in self.effectors.values():
             effector.updateValue()
 
+        self.numPsystem.print()
+
         return True
     # end runControlStep()
 # end class Controller
 
 def pep_controller():
     rospy.init_node('pep_controller')
-    rate = rospy.Rate(10) # 10hz
+    rate = rospy.Rate(1) # 1hz
 
     # read all parameters
 
@@ -220,7 +240,7 @@ def pep_controller():
     input_dev_group = rospy.get_param("input_dev")
     for dev_name, dev_topic in input_dev_group.items():
         rospy.loginfo("Adding sensor %s" % dev_name)
-        sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
+        sensors[dev_name] = SensorProximity(pObjects = [dev_name], topic = dev_topic)
         # create a subscriber
         rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
 
@@ -237,6 +257,7 @@ def pep_controller():
     while not rospy.is_shutdown():
         # if errors are encountered during Pep execution
         if (controller.runControlStep() == False):
+            rospy.logerr("errors were encountered during Pep execution")
             return
         rate.sleep()
 

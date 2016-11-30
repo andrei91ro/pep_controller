@@ -46,7 +46,7 @@
     </group>
 
 	<!---->
-	<node pkg="pep_controller" type="pep_controller.py" name="pep_control">
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
         <param name="pepInputFile" value="$(arg pep_input_file)"/>
 	</node>
 
