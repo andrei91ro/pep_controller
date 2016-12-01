@@ -1,0 +1,40 @@
+<launch>
+    <arg name="pep_input_file" default="input.pep"/>
+
+    <group ns="constants">
+        <!--P object name (name) and topic name (value)-->
+        <param name="cruiseSpeedLeft " value="10" />
+        <param name="wL0" value="0.5" />
+        <param name="wL1" value="0.6" />
+        <param name="wL2" value="1" />
+    </group>
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+        <param name="prox0" value="/proximity0" />
+        <param name="prox1" value="/proximity1" />
+        <param name="prox2" value="/proximity2" />
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <param name="robot_type" value="diff_drive" />
+        <!--P object to motor speed mapping-->
+        <group ns="cmd_vel">
+            <param name="lw" value="leftMotorSpeed" />
+            <param name="rw" value="rightMotorSpeed" />
+        </group>
+        <!--P object name (name) and topic name (value)-->
+        <!--TODO: add led topics to epuck_driver_cpp-->
+        <param name="led0" value="/led0" />
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>

@@ -31,6 +31,21 @@ class RobotType():
 ##########################################################################
 # class definitions
 
+class Constant():
+
+    """Class used to store a generic robot parameter that has a constant value (and may be defined using several values)"""
+
+    def __init__(self, pObjects = None, values = []):
+        self.pObjects = pObjects # initally array of strings and later crossreferenced to form an array of Pep P object
+        self.currentValue = values
+
+    def restorePobject(self):
+        """Restores the constant parameter value of the P object that has could have been reset to 0 if it was part of a production function"""
+        for i, pObject in enumerate(self.pObjects):
+            pObject.value = self.currentValue[i]
+    # end restorePobject()
+# end class Constant
+
 class Sensor():
 
     """Class used to store a generic robot sensor (that may be defined by several variables)
@@ -54,7 +69,7 @@ class Sensor():
 
     def updatePobject(self):
         """ Updates the value of the P object to the current value of this sensor reading """
-        if (type(self.currentValue) == None):
+        if (self.currentValue == None):
             rospy.loginfo("no sensor reading from topic %s" % self.topic)
             # skip this P object update request
             return
@@ -62,26 +77,10 @@ class Sensor():
         self.lock.acquire() # lock mutex
         for i, pObject in enumerate(self.pObjects):
             pObject.value = self.currentValue[i]
+        self.currentValue = None # clear the current sensor measurement and wait for a new one
         self.lock.release() # unlock mutex
     # end updatePobject()
 # end class Sensor
-
-class SensorProximity(Sensor):
-
-    """Class used to model a proximity sensor that records values from the 'sensor_msgs.Range' topic"""
-
-    def __init__(self, pObjects = None, topic=""):
-        Sensor.__init__(self, pObjects, topic)
-        self.currentValue = [0.0] # sensor_msgs.Range.range (float)
-
-    def updatePobject(self):
-        """ Updates the value of the P object to the current value of the proximity sensor reading """
-
-        self.lock.acquire() # lock mutex
-        self.pObjects[0].value = self.currentValue[0] # only one numeric value (and associated P object)
-        self.lock.release() # unlock mutex
-    # end updatePobject()
-# end class SensorProximity
 
 class Effector():
 
@@ -96,7 +95,7 @@ class Effector():
         """Compares the previous and current values in order to determine whether they are different
         :returns: True / False depending on whether the two values are identical (in the context of the type of the variables)"""
 
-        return [pObj.value for pObj in self.pObjects] == self.previousPobjectValues
+        return [pObj.value for pObj in self.pObjects] != self.previousPobjectValues
     # end isNewValue()
 
     def updateValue(self):
@@ -151,21 +150,29 @@ class Controller():
         self.numPsystem = pep.readInputFile(pepInputFile) # Pep simulated Numerical P system (constructed from input file)
         self.sensors = {} # empty dictionary of sensors (Sensor objects)
         self.effectors = {} # empty dictionary of effectors (Effector objects)
+        self.constants = {} # empty dictionary of constant parameters (Constant objects)
         self.robotType = robotType # a generic description of the robot (diff_drive, quadcopter, ...)
+
+        self.numPsystem.print(withPrograms=True)
     # end __init__()
 
-    def interfaceWithDevices(self, sensors, effectors):
+    def interfaceWithDevices(self, sensors, effectors, constants = {}):
         """Crossreferences string identifiers of P system variables with an actual P object instance
         Can fail if not all input / output device variables (that were declared using parameters) are used within the Numerical P system
         :sensors: dictionary of sensors {dev_name: Sensor object}
-        :effectors: dictionary of effectors {dev_name: Effector object}"""
+        :effectors: dictionary of effectors {dev_name: Effector object}
+        :constants: dictionary of constants {constant_name: Constant object}"""
 
         self.sensors = sensors
         self.effectors = effectors
+        self.constants = constants
 
         sensorPobjects = []
         effectorPobjects = []
+        constantPobjects = []
 
+        totalSensorPobjectCount = 0
+        totalEffectorPobjectCount = 0
         # cross-reference string identifiers with references to Pobject instances
         for var in self.numPsystem.variables:
             totalSensorPobjectCount = 0
@@ -186,13 +193,25 @@ class Controller():
                         effector.pObjects[i] = var
                         effectorPobjects.append(var.name)
 
-        rospy.loginfo("Pobjects used for sensors = %s, Pobjects used for effectors = %s" % (sensorPobjects, effectorPobjects))
+            totalConstantPobjectCount = 0
+            for constant in self.constants.values():
+                for i, pObject in enumerate(constant.pObjects[:]):
+                    totalConstantPobjectCount += 1 # count this constant
+                    if (pObject == var.name):
+                        # replace string with P object reference
+                        constant.pObjects[i] = var
+                        constantPobjects.append(var.name)
+
+        rospy.loginfo("Pobjects used for sensors = %s, effectors = %s, constants = %s" % (sensorPobjects, effectorPobjects, constantPobjects))
 
         if (totalSensorPobjectCount != len(sensorPobjects)):
             rospy.logerr("Not all sensor values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalSensorPobjectCount, len(sensorPobjects)))
             exit(1)
         if (totalEffectorPobjectCount != len(effectorPobjects)):
             rospy.logerr("Not all effector values (n = %d )have been modelled using P objects (m = %d). Shutting down controller!" % (totalEffectorPobjectCount, len(effectorPobjects)))
+            exit(1)
+        if (totalConstantPobjectCount != len(constantPobjects)):
+            rospy.logerr("Not all constant values (n = %d )have been modelled using P objects (m = %d). Shutting down controller!" % (totalConstantPobjectCount, len(constantPobjects)))
             exit(1)
     # end interfaceWithDevices()
 
@@ -210,6 +229,12 @@ class Controller():
         for sensor in self.sensors.values():
             sensor.updatePobject()
 
+        # restore constant values into constants that could have been reset to 0 due to their presence in production rules
+        for constant in self.constants.values():
+            constant.restorePobject()
+
+        self.numPsystem.print()
+
         try:
             self.numPsystem.runSimulationStep()
         except RuntimeError:
@@ -220,6 +245,7 @@ class Controller():
         for effector in self.effectors.values():
             effector.updateValue()
 
+        print("After sim step:")
         self.numPsystem.print()
 
         return True
@@ -235,16 +261,23 @@ def pep_controller():
     pep_input_file = rospy.get_param("~pepInputFile")
     controller = Controller(pepInputFile = pep_input_file)
 
+    # retrieve and process the constants group (dictionary) of parameters
+    constants = {}
+    constants_group = rospy.get_param("constants")
+    for const_name, const_value in constants_group.items():
+        rospy.loginfo("Adding constant %s" % const_name)
+        constants[const_name] = Constant(pObjects = [const_name], values = [const_value])
+
     # retrieve and process the input group (dictionary) of parameters
     sensors = {}
     input_dev_group = rospy.get_param("input_dev")
     for dev_name, dev_topic in input_dev_group.items():
         rospy.loginfo("Adding sensor %s" % dev_name)
-        sensors[dev_name] = SensorProximity(pObjects = [dev_name], topic = dev_topic)
+        sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
         # create a subscriber
         rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
 
-    # retrieve and process the outpu  group (dictionary) of parameters
+    # retrieve and process the output group (dictionary) of parameters
     effectors = {}
     #output_dev_group = rospy.get_param("~output_dev")
     #for dev_name, dev_topic in output_dev_group.items():
@@ -252,7 +285,7 @@ def pep_controller():
     output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
     effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
 
-    controller.interfaceWithDevices(sensors, effectors)
+    controller.interfaceWithDevices(sensors, effectors, constants)
 
     while not rospy.is_shutdown():
         # if errors are encountered during Pep execution

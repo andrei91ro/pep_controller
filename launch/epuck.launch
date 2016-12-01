@@ -23,6 +23,14 @@
     <arg name="cam_mode" default="-1" /> <!-- 0=gray (default), 1=rgb565 -->
     <arg name="cam_x_offset" default="-1" />  <!-- By default the slice will be centered. -->
     <arg name="cam_y_offset" default="-1" />
+
+    <group ns="constants">
+        <!--P object name (name) and topic name (value)-->
+        <param name="wL0" value="0.5" />
+        <param name="wL1" value="0.6" />
+        <param name="wL2" value="1" />
+    </group>
+
     <group ns="input_dev">
         <!--P object name (name) and topic name (value)-->
         <param name="prox0" value="/proximity0" />
