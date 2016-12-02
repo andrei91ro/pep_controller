@@ -4,16 +4,26 @@
     <group ns="constants">
         <!--P object name (name) and topic name (value)-->
         <param name="cruiseSpeedLeft " value="10" />
-        <param name="wL0" value="0.5" />
+        <param name="wL0" value="0.2" />
         <param name="wL1" value="0.6" />
         <param name="wL2" value="1" />
+
+        <param name="cruiseSpeedRight" value="10" />
+        <param name="wR0" value="-1" />
+        <param name="wR1" value="0.6" />
+        <param name="wR2" value="-0.2" />
     </group>
 
     <group ns="input_dev">
         <!--P object name (name) and topic name (value)-->
         <param name="prox0" value="/proximity0" />
+        <param name="prox0_" value="/proximity0" />
+
         <param name="prox1" value="/proximity1" />
+        <param name="prox1_" value="/proximity1" />
+
         <param name="prox2" value="/proximity2" />
+        <param name="prox2_" value="/proximity2" />
     </group>
 
     <group ns="output_dev">

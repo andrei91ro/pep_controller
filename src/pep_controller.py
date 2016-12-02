@@ -218,7 +218,7 @@ class Controller():
     def handleDistanceSensors(self, data, sensor_id):
         """Distance sensor handler function that is called when receiving a message on a distance sensor topic"""
         rospy.logdebug("recording new value from sensor %s" % sensor_id)
-        self.sensors[sensor_id].setValue([data.range])
+        self.sensors[sensor_id].setValue([data.range * 15])
     # end handleDistanceSensors()
 
     def runControlStep(self):
@@ -254,7 +254,7 @@ class Controller():
 
 def pep_controller():
     rospy.init_node('pep_controller')
-    rate = rospy.Rate(1) # 1hz
+    rate = rospy.Rate(10) # 10hz
 
     # read all parameters
 
@@ -283,7 +283,7 @@ def pep_controller():
     #for dev_name, dev_topic in output_dev_group.items():
         #effectors[dev_name] = Effector(pObjects = [dev_name], topic = dev_topic)
     output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
-    effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
+    effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "/mobile_base/cmd_vel")
 
     controller.interfaceWithDevices(sensors, effectors, constants)
 
