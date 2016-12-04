@@ -112,16 +112,17 @@ class EffectorDiffDriveMovement(Effector):
     """Differential drive movement effector
     Converts a pair of motor speeds into a geometry_msgs.Twist message"""
 
-    def __init__(self, pObjects = None, topic = "", motorMin = 0, motorMax = 100, twistMaxLinearSpeed = 10, twistMaxAngularSpeed = 10):
+    def __init__(self, pObjects = None, topic = "", wheelSeparation = 5.3, wheelDiameter = 4):
+        """Constructs a new differential drive effector based on a set of parameters:
+            :pObjects: The P objects that the topic values will be linked to
+            :topic: The topic to which this effector will publish
+            :wheelSeparation: The distance between wheels in centimeters (cm)
+            :wheelDiameter: The wheel diameter in centimeters (cm)"""
         Effector.__init__(self, pObjects, topic)
         self.topic = topic
         self.publisher = rospy.Publisher(self.topic, Twist, queue_size=10)
-
-        self.motorMin = 0 # robot specific minimum motor speed
-        self.motorMax = 100 # robot specific maximum motor speed
-        # TODO take the sign into account (-10 is ok for Twist speeds and is a maximum backward speed)
-        self.twistMaxLinearSpeed = 10 # user specified maximum linear speed
-        self.twistMaxAngularSpeed = 10 # user specified maximum linear speed
+        self.wheelSeparation = wheelSeparation
+        self.wheelDiameter = wheelDiameter
 
     def updateValue(self):
         """Check the Pobject values for changes (since the previous simulation step) and publish a message if changes have occured"""
@@ -130,9 +131,9 @@ class EffectorDiffDriveMovement(Effector):
             newValue = Twist()
             leftMotorSpeed = self.pObjects[0].value
             rightMotorSpeed = self.pObjects[1].value
-            # TODO consult epuck_driver and docs for a real conversion formula
-            newValue.linear.x = (1 - (leftMotorSpeed - rightMotorSpeed) / (self.motorMax - self.motorMin)) * self.twistMaxLinearSpeed
-            newValue.angular.z = (leftMotorSpeed - rightMotorSpeed) / (self.motorMax - self.motorMin) * self.twistMaxLinearSpeed
+
+            newValue.linear.x = (leftMotorSpeed + rightMotorSpeed) / 2
+            newValue.angular.z = (rightMotorSpeed - leftMotorSpeed) / self.wheelSeparation
 
             #publish the newly constructed value
             self.publisher.publish(newValue)
@@ -254,10 +255,9 @@ class Controller():
 
 def pep_controller():
     rospy.init_node('pep_controller')
-    rate = rospy.Rate(10) # 10hz
 
     # read all parameters
-
+    rate = rospy.Rate(rospy.get_param("~loopRateHz")) # 10hz default
     pep_input_file = rospy.get_param("~pepInputFile")
     controller = Controller(pepInputFile = pep_input_file)
 
@@ -283,7 +283,7 @@ def pep_controller():
     #for dev_name, dev_topic in output_dev_group.items():
         #effectors[dev_name] = Effector(pObjects = [dev_name], topic = dev_topic)
     output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
-    effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "/mobile_base/cmd_vel")
+    effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
 
     controller.interfaceWithDevices(sensors, effectors, constants)
 

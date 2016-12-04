@@ -1,17 +1,24 @@
 <launch>
     <arg name="pep_input_file" default="input.pep"/>
+    <arg name="loop_rate_hz" default="10"/>
 
     <group ns="constants">
         <!--P object name (name) and topic name (value)-->
-        <param name="cruiseSpeedLeft " value="10" />
-        <param name="wL0" value="0.2" />
-        <param name="wL1" value="0.6" />
-        <param name="wL2" value="1" />
+        <param name="cruiseSpeedLeft " value="5" />
+        <param name="wL0" value="10" />
+        <param name="wL1" value="8" />
+        <param name="wL2" value="4" />
+        <param name="wL5" value="-4" />
+        <param name="wL6" value="-8" />
+        <param name="wL7" value="-10" />
 
-        <param name="cruiseSpeedRight" value="10" />
-        <param name="wR0" value="-1" />
-        <param name="wR1" value="0.6" />
-        <param name="wR2" value="-0.2" />
+        <param name="cruiseSpeedRight" value="5" />
+        <param name="wR0" value="-10" />
+        <param name="wR1" value="-8" />
+        <param name="wR2" value="-4" />
+        <param name="wR5" value="4" />
+        <param name="wR6" value="8" />
+        <param name="wR7" value="10" />
     </group>
 
     <group ns="input_dev">
@@ -24,6 +31,15 @@
 
         <param name="prox2" value="/proximity2" />
         <param name="prox2_" value="/proximity2" />
+
+        <param name="prox5" value="/proximity5" />
+        <param name="prox5_" value="/proximity5" />
+
+        <param name="prox6" value="/proximity6" />
+        <param name="prox6_" value="/proximity6" />
+
+        <param name="prox7" value="/proximity7" />
+        <param name="prox7_" value="/proximity7" />
     </group>
 
     <group ns="output_dev">
@@ -43,6 +59,10 @@
 
 	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
         <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="cmd_vel" to="mobile_base/cmd_vel"/>
 	</node>
 
 	<!--<node pkg="rviz" type="rviz" name="rviz" />-->

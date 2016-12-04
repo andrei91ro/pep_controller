@@ -16,9 +16,9 @@ num_ps = {
     };
 
     left = {
-        var = {prox0, prox1, prox2, cruiseSpeedLeft, wL0, wL1, wL2}; # variables used in the production function
-        pr = {cruiseSpeedLeft + wL0*prox0 + wL1*prox1 + wL2*prox2 + lw*0 -> 1|lw};
-        var0 = (0, 0, 0, 10, 0.2, 0.6, 1);
+        var = {prox0, prox1, prox2, prox5, prox6, prox7, cruiseSpeedLeft, wL0, wL1, wL2, wL5, wL6, wL7}; # variables used in the production function
+        pr = {cruiseSpeedLeft + wL0*prox0 + wL1*prox1 + wL2*prox2 + wL5*prox5 + wL6*prox6 + wL7*prox7 + lw*0 -> 1|lw};
+        #var0 = (0, 0, 0, 10, 0.2, 0.6, 1);
     };
 
     speed_left = {
@@ -28,9 +28,9 @@ num_ps = {
     };
 
     right = {
-        var = {prox0_, prox1_, prox2_, cruiseSpeedRight, wR0, wR1, wR2}; # variables used in the production function
-        pr = {cruiseSpeedRight + wR0*prox0_ + wR1*prox1_ + wR2*prox2_ + rw*0 -> 1|rw};
-        var0 = (0, 0, 0, 10, 1, 0.6, 0.2);
+        var = {prox0_, prox1_, prox2_, prox5_, prox6_, prox7_, cruiseSpeedRight, wR0, wR1, wR2, wR5, wR6, wR7}; # variables used in the production function
+        pr = {cruiseSpeedRight + wR0*prox0_ + wR1*prox1_ + wR2*prox2_ + wR5*prox5_ + wR6*prox6_ + wR7*prox7_ + rw*0 -> 1|rw};
+        #var0 = (0, 0, 0, 10, 1, 0.6, 0.2);
     };
 
     speed_right = {
