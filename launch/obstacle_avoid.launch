@@ -1,5 +1,5 @@
 <launch>
-    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/obstacle_avoid_with_led.pep"/>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/obstacle_avoid.pep"/>
     <arg name="loop_rate_hz" default="10"/>
 
     <group ns="constants">
@@ -52,21 +52,9 @@
             <param name="lw" value="leftMotorSpeed" />
             <param name="rw" value="rightMotorSpeed" />
         </group>
-
-        <!--The 'cmd_led' topic is used to control all of the LEDs that are available on the standard e-puck
-            P object name (name) and LED number (value, one digit from 0 to 9)-->
-        <group ns="cmd_led">
-            <!--<param name="led0" value="0" />-->
-            <param name="led1" value="1" />
-            <!--<param name="led2" value="2" />-->
-            <!--<param name="led3" value="3" />-->
-            <!--<param name="led4" value="4" />-->
-            <!--<param name="led5" value="5" />-->
-            <!--<param name="led6" value="6" />-->
-            <param name="led7" value="7" />
-            <!--<param name="base" value="8" />-->
-            <!--<param name="front" value="9" />-->
-        </group>
+        <!--P object name (name) and topic name (value)-->
+        <!--TODO: add led topics to epuck_driver_cpp-->
+        <param name="led0" value="/led0" />
     </group>
 
 	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
@@ -75,7 +63,6 @@
 
         <!--remap the cmd_vel output topic to that expected by epuck_driver-->
         <remap from="cmd_vel" to="mobile_base/cmd_vel"/>
-        <remap from="cmd_led" to="mobile_base/cmd_led"/>
 	</node>
 
 	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
