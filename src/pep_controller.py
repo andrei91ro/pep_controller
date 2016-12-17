@@ -13,7 +13,7 @@
 
 from __future__ import print_function, with_statement, division
 import rospy
-#from std_msgs.msg import String
+from std_msgs.msg import Int32 # for robotID topic
 from geometry_msgs.msg import Twist # for cmd_vel topic
 from sensor_msgs.msg import Range # for /proximity topic
 from std_msgs.msg import UInt8MultiArray # for /cmd_led topic
@@ -154,6 +154,7 @@ class EffectorLED(Effector):
     def __init__(self, pObjects = None, ledNumbers = None, topic = ""):
         """Constructs a new LED state effector based on a set of parameters:
             :pObjects: The P objects that the topic values will be linked to
+            :ledNumbers: The active led index numbers (array of values between 0 and 9)
             :topic: The topic to which this effector will publish"""
         Effector.__init__(self, pObjects, topic)
         self.ledNumbers = ledNumbers
@@ -203,6 +204,8 @@ class Controller():
         self.effectors = effectors
         self.constants = constants
 
+        rospy.logdebug("interfaceWithDevices() Received parameter list of:\n sensors = %s\n effectors = %s\n constants = %s" % (sensors.keys(), effectors.keys(), constants.keys()))
+
         sensorPobjects = []
         effectorPobjects = []
         constantPobjects = []
@@ -216,6 +219,7 @@ class Controller():
                 for i, pObject in enumerate(sensor.pObjects[:]):
                     totalSensorPobjectCount += 1 # count this sensor
                     if (pObject == var.name):
+                        rospy.logdebug("Replacing %s sensor variable" % var.name)
                         # replace string with P object reference
                         sensor.pObjects[i] = var
                         sensorPobjects.append(var.name)
@@ -225,6 +229,7 @@ class Controller():
                 for i, pObject in enumerate(effector.pObjects[:]):
                     totalEffectorPobjectCount += 1 # count this effector
                     if (pObject == var.name):
+                        rospy.logdebug("Replacing %s effector variable" % var.name)
                         # replace string with P object reference
                         effector.pObjects[i] = var
                         effectorPobjects.append(var.name)
@@ -234,6 +239,7 @@ class Controller():
                 for i, pObject in enumerate(constant.pObjects[:]):
                     totalConstantPobjectCount += 1 # count this constant
                     if (pObject == var.name):
+                        rospy.logdebug("Replacing %s constant" % var.name)
                         # replace string with P object reference
                         constant.pObjects[i] = var
                         constantPobjects.append(var.name)
@@ -252,7 +258,11 @@ class Controller():
     # end interfaceWithDevices()
 
     def handleDistanceSensors(self, data, sensor_id):
-        """Distance sensor handler function that is called when receiving a message on a distance sensor topic"""
+        """Distance sensor handler function that is called when receiving a message on a distance sensor topic
+
+        :data: The contents of the message
+        :message_id: Sensor identifier (used as key in the messages dictionary)"""
+
         rospy.logdebug("recording new value from sensor %s" % sensor_id)
         self.sensors[sensor_id].setValue([data.range * 15])
     # end handleDistanceSensors()
@@ -289,40 +299,63 @@ class Controller():
 # end class Controller
 
 def pep_controller():
-    rospy.init_node('pep_controller')
+    #rospy.init_node('pep_controller')
+    rospy.init_node('pep_controller', log_level=rospy.DEBUG)
 
     # read all parameters
     rate = rospy.Rate(rospy.get_param("~loopRateHz")) # 10hz default
     pep_input_file = rospy.get_param("~pepInputFile")
+    rospy.logwarn("Default value of 0 will be used for the robotID parameter if not supplied")
+    robotID = int(rospy.get_param("~robotID", 0))
     controller = Controller(pepInputFile = pep_input_file)
+
+    # build a publisher for the robotID topic (std_msgs.Int32) for use in a swarm
+    pub_robotID = rospy.Publisher("robotID", Int32, queue_size=10)
 
     # retrieve and process the constants group (dictionary) of parameters
     constants = {}
-    constants_group = rospy.get_param("constants")
-    for const_name, const_value in constants_group.items():
-        rospy.loginfo("Adding constant %s" % const_name)
-        constants[const_name] = Constant(pObjects = [const_name], values = [const_value])
+    try:
+        constants_group = rospy.get_param("constants")
+        for const_name, const_value in constants_group.items():
+            rospy.loginfo("Adding constant %s" % const_name)
+            # if this constant's value is the robotID
+            if (const_value == "robotID"):
+                constants[const_name] = Constant(pObjects = [const_name], values = [robotID])
+                rospy.loginfo("Adding constant robotID")
+            else:
+                constants[const_name] = Constant(pObjects = [const_name], values = [const_value])
+    except KeyError:
+        rospy.logwarn("No other constants, except robotID, have been set/detected")
 
     # retrieve and process the input group (dictionary) of parameters
     sensors = {}
-    input_dev_group = rospy.get_param("input_dev")
-    for dev_name, dev_topic in input_dev_group.items():
-        rospy.loginfo("Adding sensor %s" % dev_name)
-        sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
-        # create a subscriber
-        rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
+    try:
+        input_dev_group = rospy.get_param("input_dev")
+        for dev_name, dev_topic in input_dev_group.items():
+            rospy.loginfo("Adding sensor %s" % dev_name)
+            sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
+            # create a subscriber
+            rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
+    except KeyError:
+        rospy.logwarn("No input_dev sensor has been set/detected")
 
     # retrieve and process the output group (dictionary) of parameters
     effectors = {}
-    #output_dev_group = rospy.get_param("~output_dev")
-    #for dev_name, dev_topic in output_dev_group.items():
-        #effectors[dev_name] = Effector(pObjects = [dev_name], topic = dev_topic)
-    output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
-    effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
+    try:
+        #output_dev_group = rospy.get_param("~output_dev")
+        #for dev_name, dev_topic in output_dev_group.items():
+            #effectors[dev_name] = Effector(pObjects = [dev_name], topic = dev_topic)
+        output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
+        effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
+    except KeyError:
+        rospy.logwarn("No output_dev/cmd_vel effector has been set/detected")
 
-    output_cmd_led = rospy.get_param("output_dev/cmd_led")
-    # sorted(output_cmd_led) returns a list of dictionary keys (param name) sorted by their values
-    effectors["cmd_led"] = EffectorLED(pObjects = sorted(output_cmd_led), ledNumbers = sorted(output_cmd_led.values()),  topic = "cmd_led")
+    try:
+        output_cmd_led = rospy.get_param("output_dev/cmd_led")
+        # sorted(output_cmd_led) returns a list of dictionary keys (param name) sorted by their values
+        effectors["cmd_led"] = EffectorLED(pObjects = sorted(output_cmd_led), ledNumbers = sorted(output_cmd_led.values()),  topic = "cmd_led")
+    except KeyError:
+        rospy.logwarn("No output_dev/cmd_led effector has been set/detected")
 
     controller.interfaceWithDevices(sensors, effectors, constants)
 
@@ -331,6 +364,8 @@ def pep_controller():
         if (controller.runControlStep() == False):
             rospy.logerr("errors were encountered during Pep execution")
             return
+
+        pub_robotID.publish(robotID)
         rate.sleep()
 
 if __name__ == '__main__':
