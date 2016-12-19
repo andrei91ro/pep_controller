@@ -1,0 +1,60 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/leader_follow_distance.pep"/>
+    <arg name="loop_rate_hz" default="10"/>
+
+    <group ns="constants">
+        <!--P object name (name) and topic name (value)-->
+        <param name="cruiseSpeedLeft " value="5" />
+        <param name="kL" value="-10" />
+
+        <param name="cruiseSpeedRight" value="5" />
+        <param name="kR" value="10" />
+
+    </group>
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+        <group ns="range">
+            <param name="prox0_0" value="proximity0" />
+            <param name="prox0_1" value="proximity0" />
+
+            <param name="prox1_0" value="proximity1" />
+            <param name="prox1_1" value="proximity1" />
+
+            <param name="prox2_0" value="proximity2" />
+            <param name="prox2_1" value="proximity2" />
+
+            <param name="prox5_0" value="proximity5" />
+            <param name="prox5_1" value="proximity5" />
+
+            <param name="prox6_0" value="proximity6" />
+            <param name="prox6_1" value="proximity6" />
+
+            <param name="prox7_0" value="proximity7" />
+            <param name="prox7_1" value="proximity7" />
+        </group>
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <param name="robot_type" value="diff_drive" />
+        <!--P object to motor speed mapping-->
+        <group ns="cmd_vel">
+            <param name="lw" value="leftMotorSpeed" />
+            <param name="rw" value="rightMotorSpeed" />
+        </group>
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="cmd_vel" to="mobile_base/cmd_vel"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>
