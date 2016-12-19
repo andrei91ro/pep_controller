@@ -1,0 +1,92 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/led_sync.pep"/>
+    <arg name="loop_rate_hz" default="1"/>
+    <arg name="robotID" default="0"/>
+
+    <group ns="constants">
+        <!--P object name (name) and topic name (value)-->
+        <param name="robotID_0" value="robotID" />
+        <param name="robotID_1" value="robotID" />
+    </group>
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+
+        <!--Group of sensors that publish using the sensor_msgs.Range type-->
+        <!--<group ns="range">-->
+            <!--<param name="prox0" value="/proximity0" />-->
+            <!--<param name="prox0_" value="/proximity0" />-->
+
+            <!--<param name="prox1" value="/proximity1" />-->
+            <!--<param name="prox1_" value="/proximity1" />-->
+
+            <!--<param name="prox2" value="/proximity2" />-->
+            <!--<param name="prox2_" value="/proximity2" />-->
+
+            <!--<param name="prox5" value="/proximity5" />-->
+            <!--<param name="prox5_" value="/proximity5" />-->
+
+            <!--<param name="prox6" value="/proximity6" />-->
+            <!--<param name="prox6_" value="/proximity6" />-->
+
+            <!--<param name="prox7" value="/proximity7" />-->
+            <!--<param name="prox7_" value="/proximity7" />-->
+        <!--</group>-->
+
+        <!--robot signal receivers are also considered input devices-->
+        <group ns="signal_receive">
+            <param name="epuck0_signal" value="/epuck_0/broadcast_1" />
+            <param name="epuck1_signal" value="/epuck_1/broadcast_1" />
+            <param name="epuck2_signal" value="/epuck_2/broadcast_1" />
+        </group>
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <!--<param name="robot_type" value="diff_drive" />-->
+        <!--P object to motor speed mapping-->
+        <!--<group ns="cmd_vel">-->
+            <!--<param name="lw" value="leftMotorSpeed" />-->
+            <!--<param name="rw" value="rightMotorSpeed" />-->
+        <!--</group>-->
+
+        <!--The 'cmd_led' topic is used to control all of the LEDs that are available on the standard e-puck
+            P object name (name) and LED number (value, one digit from 0 to 9)-->
+        <group ns="cmd_led">
+            <!--<param name="led0" value="0" />-->
+            <!--<param name="led1" value="1" />-->
+            <!--<param name="led2" value="2" />-->
+            <!--<param name="led3" value="3" />-->
+            <!--<param name="led4" value="4" />-->
+            <!--<param name="led5" value="5" />-->
+            <!--<param name="led6" value="6" />-->
+            <!--<param name="led7" value="7" />-->
+            <param name="base_led" value="8" />
+            <!--<param name="front" value="9" />-->
+        </group>
+
+
+        <!--robot signal broadcasters are considered output devices-->
+        <group ns="signal_broadcast">
+            <!--P object name (name) and topic name (value)-->
+            <param name="bcast1" value="broadcast_1" />
+        </group>
+    </group>
+
+    <!--all parameters in this group are broadcast (published) topics linked to P objects-->
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen" required="true">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+        <param name="robotID" value="$(arg robotID)"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="cmd_vel" to="mobile_base/cmd_vel"/>
+        <remap from="cmd_led" to="mobile_base/cmd_led"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>

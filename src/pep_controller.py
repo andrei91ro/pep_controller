@@ -19,6 +19,7 @@ from sensor_msgs.msg import Range # for /proximity topic
 from std_msgs.msg import UInt8MultiArray # for /cmd_led topic
 import thread # for lock (mutex)
 import pep # Numerical P system simulator
+import time # for initial sleep
 ##########################################################################
 # auxiliary definitions
 
@@ -176,8 +177,28 @@ class EffectorLED(Effector):
 
         Effector.updateValue(self)
 
-    # end setValueFromMotorSpeeds()
-# end class EffectorDiffDriveMovement
+    # end updateValue()
+# end class EffectorLED
+
+class EffectorMessageBroadcaster(Effector):
+
+    """Robot message broadcaster
+    Publishes a numeric message, constructed from the value of a P object, to the entire ROS system"""
+
+    def __init__(self, pObjects = None, topic = ""):
+        """TODO: to be defined1. """
+        Effector.__init__(self, pObjects, topic)
+        self.publisher = rospy.Publisher(self.topic, Int32, queue_size=10)
+
+    def updateValue(self):
+        """Check the Pobject values for changes (since the previous simulation step) and publish (broadcast) a message if changes have occured"""
+
+        #if (self.isNewValue()):
+            # effectively broadcast the new message
+        self.publisher.publish(self.pObjects[0].value)
+
+        Effector.updateValue(self)
+# end class MessageBroadcaster
 
 class Controller():
 
@@ -267,6 +288,16 @@ class Controller():
         self.sensors[sensor_id].setValue([data.range * 15])
     # end handleDistanceSensors()
 
+    def handleMessageReceiveFromRobot(self, data, sensor_id):
+        """Handler function that is called whenever a new message arrives from another robot.
+
+        :data: The contents of the message
+        :sensor_id: Message identifier (used as key in the sensors dictionary)"""
+
+        rospy.logdebug("received new message from %s = %s" % (sensor_id, data))
+        self.sensors[sensor_id].setValue([data.data])
+    # end handleMessageReceiveFromRobot()
+
     def runControlStep(self):
         """Executes one control step consisting of preparing input data, executing one P system simulation step and lastly publishing new output values
         :returns: True / False depending on the success of the execution"""
@@ -288,7 +319,8 @@ class Controller():
             return False
 
         # check effector P objects for changes and if so then publish new messages to effectors
-        for effector in self.effectors.values():
+        for effector_name, effector in self.effectors.items():
+            rospy.logdebug("updating effector %s: %s" % (effector_name, effector.pObjects))
             effector.updateValue()
 
         print("After sim step:")
@@ -304,6 +336,7 @@ def pep_controller():
 
     # read all parameters
     rate = rospy.Rate(rospy.get_param("~loopRateHz")) # 10hz default
+    initialSleepSec = float(rospy.get_param("~initialSleepSec", 5)) # 10 seconds default
     pep_input_file = rospy.get_param("~pepInputFile")
     rospy.logwarn("Default value of 0 will be used for the robotID parameter if not supplied")
     robotID = int(rospy.get_param("~robotID", 0))
@@ -330,14 +363,25 @@ def pep_controller():
     # retrieve and process the input group (dictionary) of parameters
     sensors = {}
     try:
-        input_dev_group = rospy.get_param("input_dev")
+        input_dev_group = rospy.get_param("input_dev/range")
         for dev_name, dev_topic in input_dev_group.items():
-            rospy.loginfo("Adding sensor %s" % dev_name)
+            rospy.loginfo("Adding Range sensor %s" % dev_name)
             sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
             # create a subscriber
             rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
     except KeyError:
-        rospy.logwarn("No input_dev sensor has been set/detected")
+        rospy.logwarn("No 'input_dev/range' (sensor_msgs.Range) sensors have been set/detected")
+
+    try:
+        input_signal_receive = rospy.get_param("input_dev/signal_receive")
+        for dev_name, dev_topic in input_signal_receive.items():
+            rospy.loginfo("Adding signal receiver object %s" % dev_name)
+            sensors[dev_name] = Sensor(pObjects = [dev_name], topic = dev_topic)
+            #sensors[dev_name].setValue([0])
+            # create a subscriber
+            rospy.Subscriber(dev_topic, Int32, controller.handleMessageReceiveFromRobot, dev_name)
+    except KeyError:
+        rospy.logwarn("No 'input_dev/signal_receive' robot signal receiver has been set/detected")
 
     # retrieve and process the output group (dictionary) of parameters
     effectors = {}
@@ -348,16 +392,27 @@ def pep_controller():
         output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
         effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
     except KeyError:
-        rospy.logwarn("No output_dev/cmd_vel effector has been set/detected")
+        rospy.logwarn("No 'output_dev/cmd_vel' effector has been set/detected")
 
     try:
         output_cmd_led = rospy.get_param("output_dev/cmd_led")
         # sorted(output_cmd_led) returns a list of dictionary keys (param name) sorted by their values
         effectors["cmd_led"] = EffectorLED(pObjects = sorted(output_cmd_led), ledNumbers = sorted(output_cmd_led.values()),  topic = "cmd_led")
     except KeyError:
-        rospy.logwarn("No output_dev/cmd_led effector has been set/detected")
+        rospy.logwarn("No 'output_dev/cmd_led' effector has been set/detected")
+
+    try:
+        signal_broadcast_group = rospy.get_param("output_dev/signal_broadcast")
+        for dev_name, dev_topic in signal_broadcast_group.items():
+            rospy.loginfo("Adding broadcast object %s" % dev_name)
+            effectors[dev_name] = EffectorMessageBroadcaster(pObjects = [dev_name], topic = dev_topic)
+    except KeyError:
+        rospy.logwarn("No 'output_dev/signal_broadcast' robot signal emmiter effector has been set/detected")
 
     controller.interfaceWithDevices(sensors, effectors, constants)
+
+    rospy.loginfo("Initial sleep of %f seconds" % initialSleepSec)
+    time.sleep(initialSleepSec)
 
     while not rospy.is_shutdown():
         # if errors are encountered during Pep execution

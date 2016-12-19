@@ -1,0 +1,44 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/led_sync.pep"/>
+    <arg name="loop_rate_hz" default="1"/>
+    <arg name="robotID" default="0"/>
+    <arg name="epuck_id" />
+    <arg name="epuck_address" />
+
+    <group ns="epuck_$(arg robotID)">
+        <include file="$(find epuck_driver_cpp)/launch/epuck_controller.launch" required="true">
+            <arg name="epuck_id" value="$(arg epuck_id)"/>
+            <arg name="epuck_address" value="$(arg epuck_address)"/>
+            <!--<arg name="epuck_id" value="2923"/>-->
+            <!--<arg name="epuck_address" value="10:00:E8:D3:AA:8A"/>-->
+
+            <arg name="epuck_name" value="epuck_driver_cpp"/>
+            <arg name="cam_en" value="false"/>
+            <arg name="acc_en" value="false"/>
+            <arg name="prox_en" value="true"/>
+            <arg name="mot_pos_en" value="true"/>
+            <arg name="floor_en" value="false"/>
+            <arg name="mot_speed_en" value="false"/>
+            <arg name="mic_en" value="false"/>
+            <arg name="xpos" value="-0.1"/>
+            <arg name="ypos" value="-0.1"/>
+            <arg name="theta" value="0.0"/>
+            <arg name="is_single_robot" value="0"/>
+        </include>
+        <!--<node pkg="tf" type="static_transform_publisher" name="epuck_robot_0_tf" args="0 0 0 0 0 0 /base_link /epuck_robot_0/base_link 30"/>-->
+
+
+        <!--<group ns="epuck_$(arg robotID)">-->
+            <include file="$(find pep_controller)/launch/led_sync.launch">
+                <arg name="pep_input_file" value="$(arg pep_input_file)"/>
+                <arg name="loop_rate_hz" value="$(arg loop_rate_hz)"/>
+                <arg name="robotID" value="$(arg robotID)"/>
+            </include>
+            <!--</group>-->
+
+
+        <node pkg="master_discovery_fkie" type="master_discovery" name="master_discovery_fkie" required="true"/>
+
+        <node pkg="master_sync_fkie" type="master_sync" name="master_sync_fkie" required="true"/>
+    </group>
+</launch>
