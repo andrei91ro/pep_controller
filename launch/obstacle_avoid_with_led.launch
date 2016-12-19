@@ -22,24 +22,26 @@
     </group>
 
     <group ns="input_dev">
+        <group ns="range">
         <!--P object name (name) and topic name (value)-->
-        <param name="prox0" value="/proximity0" />
-        <param name="prox0_" value="/proximity0" />
+            <param name="prox0" value="proximity0" />
+            <param name="prox0_" value="proximity0" />
 
-        <param name="prox1" value="/proximity1" />
-        <param name="prox1_" value="/proximity1" />
+            <param name="prox1" value="proximity1" />
+            <param name="prox1_" value="proximity1" />
 
-        <param name="prox2" value="/proximity2" />
-        <param name="prox2_" value="/proximity2" />
+            <param name="prox2" value="proximity2" />
+            <param name="prox2_" value="proximity2" />
 
-        <param name="prox5" value="/proximity5" />
-        <param name="prox5_" value="/proximity5" />
+            <param name="prox5" value="proximity5" />
+            <param name="prox5_" value="proximity5" />
 
-        <param name="prox6" value="/proximity6" />
-        <param name="prox6_" value="/proximity6" />
+            <param name="prox6" value="proximity6" />
+            <param name="prox6_" value="proximity6" />
 
-        <param name="prox7" value="/proximity7" />
-        <param name="prox7_" value="/proximity7" />
+            <param name="prox7" value="proximity7" />
+            <param name="prox7_" value="proximity7" />
+        </group>
     </group>
 
     <group ns="output_dev">

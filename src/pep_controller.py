@@ -331,8 +331,8 @@ class Controller():
 # end class Controller
 
 def pep_controller():
-    #rospy.init_node('pep_controller')
-    rospy.init_node('pep_controller', log_level=rospy.DEBUG)
+    rospy.init_node('pep_controller')
+    #rospy.init_node('pep_controller', log_level=rospy.DEBUG)
 
     # read all parameters
     rate = rospy.Rate(rospy.get_param("~loopRateHz")) # 10hz default
