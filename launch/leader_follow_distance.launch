@@ -4,7 +4,10 @@
 
     <group ns="constants">
         <!--P object name (name) and topic name (value)-->
-        <param name="cruiseSpeedLeft " value="5" />
+        <param name="stopDistance_0" value="0.3" />
+        <param name="stopDistance_1" value="0.3" />
+
+        <param name="cruiseSpeedLeft" value="5" />
         <param name="kL" value="-10" />
 
         <param name="cruiseSpeedRight" value="5" />
