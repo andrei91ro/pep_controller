@@ -12,7 +12,7 @@
             <!--<arg name="epuck_id" value="2923"/>-->
             <!--<arg name="epuck_address" value="10:00:E8:D3:AA:8A"/>-->
 
-            <arg name="epuck_name" value="epuck_driver_cpp"/>
+            <arg name="epuck_name" value="epuck_$(arg robotID)"/>
             <arg name="cam_en" value="false"/>
             <arg name="acc_en" value="false"/>
             <arg name="prox_en" value="true"/>

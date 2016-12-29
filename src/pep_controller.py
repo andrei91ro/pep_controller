@@ -20,6 +20,8 @@ from std_msgs.msg import UInt8MultiArray # for /cmd_led topic
 import thread # for lock (mutex)
 import pep # Numerical P system simulator
 import time # for initial sleep
+import tf # for tf translation listener
+import math # for math.degrees()
 ##########################################################################
 # auxiliary definitions
 
@@ -210,6 +212,8 @@ class Controller():
         self.effectors = {} # empty dictionary of effectors (Effector objects)
         self.constants = {} # empty dictionary of constant parameters (Constant objects)
         self.robotType = robotType # a generic description of the robot (diff_drive, quadcopter, ...)
+        self.tfListener = tf.TransformListener()
+        self.tf_frames = [] # array of TF frames (that are also the names of the associated sensor object in the sensors{} dictionary)
 
         self.numPsystem.print(withPrograms=True)
     # end __init__()
@@ -267,15 +271,17 @@ class Controller():
 
         rospy.loginfo("Pobjects used for\n sensors = %s,\n effectors = %s,\n constants = %s" % (sensorPobjects, effectorPobjects, constantPobjects))
 
+        # These conditions are mandatory because otherwise a given sensor object for example would contain mixed String and Pobject values
+        # if not all sensor values are referenced by Pobjects. This would break the controller during sensor.updateValues()
         if (totalSensorPobjectCount != len(sensorPobjects)):
             rospy.logwarn("Not all sensor values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalSensorPobjectCount, len(sensorPobjects)))
-            #exit(1)
+            exit(1)
         if (totalEffectorPobjectCount != len(effectorPobjects)):
             rospy.logwarn("Not all effector values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalEffectorPobjectCount, len(effectorPobjects)))
-            #exit(1)
+            exit(1)
         if (totalConstantPobjectCount != len(constantPobjects)):
             rospy.logwarn("Not all constant values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalConstantPobjectCount, len(constantPobjects)))
-            #exit(1)
+            exit(1)
     # end interfaceWithDevices()
 
     def handleDistanceSensors(self, data, sensor_id):
@@ -287,6 +293,17 @@ class Controller():
         rospy.logdebug("recording new value from sensor %s" % sensor_id)
         self.sensors[sensor_id].setValue([data.range * 15])
     # end handleDistanceSensors()
+
+    def handleTfTransformReceive(self, data, sensor_id):
+        """TF tranform receive handler function that is called when receiving a new transform
+        The sensor data is joined as a single array of 6 values (translation.x,y,z, rotation.x,y,z)
+
+        :data: array of 6 values (translation(x, y, z), rotation(x, y, z))
+        :message_id: Sensor identifier (used as key in the messages dictionary)"""
+
+        rospy.logdebug("recording new tf transform from frame %s" % sensor_id)
+        self.sensors[sensor_id].setValue(data)
+    # end handleTfTransformReceive()
 
     def handleMessageReceiveFromRobot(self, data, sensor_id):
         """Handler function that is called whenever a new message arrives from another robot.
@@ -340,6 +357,8 @@ def pep_controller():
     pep_input_file = rospy.get_param("~pepInputFile")
     rospy.logwarn("Default value of 0 will be used for the robotID parameter if not supplied")
     robotID = int(rospy.get_param("~robotID", 0))
+    rospy.logwarn("Default value of 'base_link' will be used for the tf_base_frame parameter if not supplied")
+    tf_base_frame = rospy.get_param("~tf_base_frame", "base_link")
     controller = Controller(pepInputFile = pep_input_file)
 
     # build a publisher for the robotID topic (std_msgs.Int32) for use in a swarm
@@ -371,6 +390,28 @@ def pep_controller():
             rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
     except KeyError:
         rospy.logwarn("No 'input_dev/range' (sensor_msgs.Range) sensors have been set/detected")
+
+    try:
+        input_tf = rospy.get_param("input_dev/tf")
+        for tf_frame in input_tf.keys():
+            rospy.loginfo("Adding TF transform receiver for frame %s" % tf_frame)
+            try:
+                translation = rospy.get_param("input_dev/tf/%s/translation" % tf_frame)
+                rotation = rospy.get_param("input_dev/tf/%s/rotation" % tf_frame)
+            except KeyError:
+                rospy.logwarn("No 'translation' or 'rotation' groups have been defined / detected within /input_dev/tf/%s" % tf_frame)
+                rospy.logerr("Please define both translation and rotation groups even if not used entirely in order to use the TF input device")
+                # move on to the next tf_frame as this one is incomplete
+                continue
+
+            # sorted(dictionary) returns a list of dictionary keys sorted by their values
+            tf_pObjects = sorted(translation)
+            tf_pObjects.extend(sorted(rotation)) # concatenate the two lists
+
+            sensors[tf_frame] = Sensor(pObjects = tf_pObjects, topic = ("tf/%s" % tf_frame))
+            controller.tf_frames.append(tf_frame)
+    except KeyError:
+        rospy.logwarn("No 'input_dev/tf' frames have been set/detected")
 
     try:
         input_signal_receive = rospy.get_param("input_dev/signal_receive")
@@ -415,6 +456,24 @@ def pep_controller():
     time.sleep(initialSleepSec)
 
     while not rospy.is_shutdown():
+        if (controller.tfListener.frameExists(tf_base_frame)):
+            for tf_frame in controller.tf_frames:
+                if (controller.tfListener.frameExists(tf_frame) == False):
+                    rospy.logwarn("TF frame %s does not exist. Skipping this frame" % tf_frame)
+                    continue
+                # get a transform between me (tf_base_frame) and a another frame (tf_frame)
+                (trans, rot) = controller.tfListener.lookupTransform(tf_base_frame, tf_frame, rospy.Time(0))
+                data = list(trans)
+                # convert rotation from quaternion to euler angles
+                rot = tf.transformations.euler_from_quaternion(rot)
+                # convert angles from radians to degrees
+                rot = [math.degrees(x) for x in rot]
+                data.extend(rot)
+                # execute the new sensor data handler
+                controller.handleTfTransformReceive(data, tf_frame)
+        else:
+            rospy.logwarn("Base TF frame %s does not exist, SKIPPING ALL TF processing" % tf_base_frame)
+
         # if errors are encountered during Pep execution
         if (controller.runControlStep() == False):
             rospy.logerr("errors were encountered during Pep execution")
