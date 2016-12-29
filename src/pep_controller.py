@@ -271,14 +271,28 @@ class Controller():
 
         rospy.loginfo("Pobjects used for\n sensors = %s,\n effectors = %s,\n constants = %s" % (sensorPobjects, effectorPobjects, constantPobjects))
 
-        # These conditions are mandatory because otherwise a given sensor object for example would contain mixed String and Pobject values
-        # if not all sensor values are referenced by Pobjects. This would break the controller during sensor.updateValues()
         if (totalSensorPobjectCount != len(sensorPobjects)):
-            rospy.logwarn("Not all sensor values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalSensorPobjectCount, len(sensorPobjects)))
-            exit(1)
+            rospy.logwarn("Not all sensor values (n = %d) have been modelled using P objects (m = %d)." % (totalSensorPobjectCount, len(sensorPobjects)))
+            #exit(1)
+            self.numPsystem.variables.append(pep.Pobject(name="dummySensor", value=0))
+            dummySensor = self.numPsystem.variables[-1]
+            for sensor in self.sensors.values():
+                for i, pObject in enumerate(sensor.pObjects[:]):
+                    if (type(pObject) == str):
+                        rospy.logwarn("    Replacing '%s' sensor component with dummySensor Pobject" % pObject)
+                        sensor.pObjects[i] = dummySensor
+
         if (totalEffectorPobjectCount != len(effectorPobjects)):
-            rospy.logwarn("Not all effector values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalEffectorPobjectCount, len(effectorPobjects)))
-            exit(1)
+            rospy.logwarn("Not all effector values (n = %d) have been modelled using P objects (m = %d)." % (totalEffectorPobjectCount, len(effectorPobjects)))
+            #exit(1)
+            self.numPsystem.variables.append(pep.Pobject(name="dummyEffector", value=0))
+            dummyEffector = self.numPsystem.variables[-1]
+            for effector in self.effectors.values():
+                for i, pObject in enumerate(effector.pObjects[:]):
+                    if (type(pObject) == str):
+                        rospy.logwarn("    Replacing '%s' effector component with dummyEffector Pobject" % pObject)
+                        effector.pObjects[i] = dummyEffector
+
         if (totalConstantPobjectCount != len(constantPobjects)):
             rospy.logwarn("Not all constant values (n = %d) have been modelled using P objects (m = %d). Shutting down controller!" % (totalConstantPobjectCount, len(constantPobjects)))
             exit(1)
