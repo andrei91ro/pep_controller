@@ -50,7 +50,7 @@
         diff_drive means linear.x and angular.z are used-->
         <param name="robot_type" value="diff_drive" />
         <!--P object to motor speed mapping-->
-        <group ns="cmd_vel">
+        <group ns="cmd_vel_diff_drive">
             <param name="lw" value="leftMotorSpeed" />
             <param name="rw" value="rightMotorSpeed" />
         </group>

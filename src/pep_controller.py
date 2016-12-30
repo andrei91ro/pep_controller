@@ -143,9 +143,39 @@ class EffectorDiffDriveMovement(Effector):
             self.publisher.publish(newValue)
 
         Effector.updateValue(self)
-
-    # end setValueFromMotorSpeeds()
+    # end updateValue()
 # end class EffectorDiffDriveMovement
+
+class EffectorTwistMovement(Effector):
+
+    """Linear, angular (geometry_msgs.Twist) speeds movement effector
+    This class exposes all 3 components (x, y, z) of each speed"""
+
+    def __init__(self, pObjects = None, topic = ""):
+        """Creates a new instance of the class based on a set of parameters
+            :pObjects: The P objects that the topic values will be linked to. Expects an array of 6 values (linear(x, y, z), angular(x, y, z))
+            :topic: The topic to which this effector will publish"""
+        Effector.__init__(self, pObjects, topic)
+        self.publisher = rospy.Publisher(self.topic, Twist, queue_size=10)
+
+    def updateValue(self):
+        """Check the Pobject values for changes (since the previous simulation step) and publish a message if changes have occured"""
+
+        if (self.isNewValue()):
+            newValue = Twist()
+
+            newValue.linear.x = self.pObjects[0].value
+            newValue.linear.y = self.pObjects[1].value
+            newValue.linear.z = self.pObjects[2].value
+            newValue.angular.x = self.pObjects[3].value
+            newValue.angular.y = self.pObjects[4].value
+            newValue.angular.z = self.pObjects[5].value
+            #publish the newly constructed value
+            self.publisher.publish(newValue)
+
+        Effector.updateValue(self)
+    # end updateValue()
+# end class EffectorTwistMovement
 
 class EffectorLED(Effector):
 
@@ -441,13 +471,27 @@ def pep_controller():
     # retrieve and process the output group (dictionary) of parameters
     effectors = {}
     try:
-        #output_dev_group = rospy.get_param("~output_dev")
-        #for dev_name, dev_topic in output_dev_group.items():
-            #effectors[dev_name] = Effector(pObjects = [dev_name], topic = dev_topic)
         output_cmd_vel = rospy.get_param("output_dev/cmd_vel")
-        effectors["cmd_vel"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
+        try:
+            linear = rospy.get_param("output_dev/cmd_vel/linear")
+            angular = rospy.get_param("output_dev/cmd_vel/angular")
+
+            # sorted(dictionary) returns a list of dictionary keys sorted by their values
+            twist_pObjects = sorted(linear)
+            twist_pObjects.extend(sorted(angular))
+
+            effectors["cmd_vel"] = EffectorTwistMovement(pObjects = twist_pObjects, topic = "cmd_vel")
+        except KeyError:
+            rospy.logwarn("No 'linear' or 'angular' groups have been defined / detected within output_dev/cmd_vel")
+            rospy.logerr("Please define both linear and angular groups even if not used entirely in order to use the output device")
     except KeyError:
         rospy.logwarn("No 'output_dev/cmd_vel' effector has been set/detected")
+
+    try:
+        output_cmd_vel = rospy.get_param("output_dev/cmd_vel_diff_drive")
+        effectors["cmd_vel_diff_drive"] = EffectorDiffDriveMovement(pObjects = output_cmd_vel.keys(), topic = "cmd_vel")
+    except KeyError:
+        rospy.logwarn("No 'output_dev/cmd_vel_diff_drive' effector has been set/detected")
 
     try:
         output_cmd_led = rospy.get_param("output_dev/cmd_led")
