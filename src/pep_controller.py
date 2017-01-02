@@ -243,7 +243,7 @@ class Controller():
         self.constants = {} # empty dictionary of constant parameters (Constant objects)
         self.robotType = robotType # a generic description of the robot (diff_drive, quadcopter, ...)
         self.tfListener = tf.TransformListener()
-        self.tf_frames = [] # array of TF frames (that are also the names of the associated sensor object in the sensors{} dictionary)
+        self.tf_frames = {} # dictionary of {TF receivers: TF frames} (receivers are also the names of the associated sensor object in the sensors{} dictionary)
 
         self.numPsystem.print(withPrograms=True)
     # end __init__()
@@ -437,25 +437,33 @@ def pep_controller():
 
     try:
         input_tf = rospy.get_param("input_dev/tf")
-        for tf_frame in input_tf.keys():
-            rospy.loginfo("Adding TF transform receiver for frame %s" % tf_frame)
+        for receiver in input_tf.keys():
             try:
-                translation = rospy.get_param("input_dev/tf/%s/translation" % tf_frame)
-                rotation = rospy.get_param("input_dev/tf/%s/rotation" % tf_frame)
+                tf_frame = rospy.get_param("input_dev/tf/%s/frame" % receiver)
             except KeyError:
-                rospy.logwarn("No 'translation' or 'rotation' groups have been defined / detected within /input_dev/tf/%s" % tf_frame)
-                rospy.logerr("Please define both translation and rotation groups even if not used entirely in order to use the TF input device")
-                # move on to the next tf_frame as this one is incomplete
+                rospy.logerr("No 'frame' parameter has been defined / detected within /input_dev/tf/%s" % receiver)
+                rospy.logwarn("Please define a 'frame' parameter in order to use the TF input device")
+                # move on to the next receiver as this one is incomplete
+                continue
+
+            rospy.loginfo("Adding TF transform receiver %s for frame %s" % (receiver, tf_frame))
+            try:
+                translation = rospy.get_param("input_dev/tf/%s/translation" % receiver)
+                rotation = rospy.get_param("input_dev/tf/%s/rotation" % receiver)
+            except KeyError:
+                rospy.logerr("No 'translation' or 'rotation' groups have been defined / detected within /input_dev/tf/%s" % receiver)
+                rospy.logwarn("Please define both translation and rotation groups even if not used entirely in order to use the TF input device")
+                # move on to the next receiver as this one is incomplete
                 continue
 
             # sorted(dictionary) returns a list of dictionary keys sorted by their values
             tf_pObjects = sorted(translation)
             tf_pObjects.extend(sorted(rotation)) # concatenate the two lists
 
-            sensors[tf_frame] = Sensor(pObjects = tf_pObjects, topic = ("tf/%s" % tf_frame))
-            controller.tf_frames.append(tf_frame)
+            sensors[receiver] = Sensor(pObjects = tf_pObjects, topic = ("tf/%s" % tf_frame))
+            controller.tf_frames[receiver] = tf_frame
     except KeyError:
-        rospy.logwarn("No 'input_dev/tf' frames have been set/detected")
+        rospy.logwarn("No 'input_dev/tf/' receivers have been set/detected")
 
     try:
         input_signal_receive = rospy.get_param("input_dev/signal_receive")
@@ -515,7 +523,7 @@ def pep_controller():
 
     while not rospy.is_shutdown():
         if (controller.tfListener.frameExists(tf_base_frame)):
-            for tf_frame in controller.tf_frames:
+            for receiver, tf_frame in controller.tf_frames.items():
                 if (controller.tfListener.frameExists(tf_frame) == False):
                     rospy.logwarn("TF frame %s does not exist. Skipping this frame" % tf_frame)
                     continue
@@ -528,7 +536,7 @@ def pep_controller():
                 rot = [math.degrees(x) for x in rot]
                 data.extend(rot)
                 # execute the new sensor data handler
-                controller.handleTfTransformReceive(data, tf_frame)
+                controller.handleTfTransformReceive(data, receiver)
         else:
             rospy.logwarn("Base TF frame %s does not exist, SKIPPING ALL TF processing" % tf_base_frame)
 

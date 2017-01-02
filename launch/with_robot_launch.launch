@@ -2,11 +2,12 @@
     <arg name="pep_launch_file" default="$(find pep_controller)launch/obstacle_avoid.launch"/>
     <arg name="loop_rate_hz" default="1"/>
     <arg name="robotID" default="0"/>
+    <arg name="leader_tf"/>
     <arg name="epuck_id" />
     <arg name="epuck_address" />
 
     <group ns="epuck_$(arg robotID)">
-        <include file="$(find epuck_driver_cpp)/launch/epuck_controller.launch" required="true">
+        <include file="$(find epuck_driver_cpp)/launch/epuck_controller.launch">
             <arg name="epuck_id" value="$(arg epuck_id)"/>
             <arg name="epuck_address" value="$(arg epuck_address)"/>
             <!--<arg name="epuck_id" value="2923"/>-->
@@ -30,7 +31,8 @@
         <include file="$(arg pep_launch_file)">
             <!--pep_input_file is specified in the launch file-->
             <arg name="loop_rate_hz" value="$(arg loop_rate_hz)"/>
-            <!--<arg name="robotID" value="$(arg robotID)"/>-->
+            <arg name="robotID" value="$(arg robotID)"/>
+            <arg name="leader_tf" value="$(arg leader_tf)"/>
         </include>
 
         <node pkg="master_discovery_fkie" type="master_discovery" name="master_discovery_fkie" required="true"/>
