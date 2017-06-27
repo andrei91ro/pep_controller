@@ -527,16 +527,21 @@ def pep_controller():
                 if (controller.tfListener.frameExists(tf_frame) == False):
                     rospy.logwarn("TF frame %s does not exist. Skipping this frame" % tf_frame)
                     continue
-                # get a transform between me (tf_base_frame) and a another frame (tf_frame)
-                (trans, rot) = controller.tfListener.lookupTransform(tf_base_frame, tf_frame, rospy.Time(0))
-                data = list(trans)
-                # convert rotation from quaternion to euler angles
-                rot = tf.transformations.euler_from_quaternion(rot)
-                # convert angles from radians to degrees
-                rot = [math.degrees(x) for x in rot]
-                data.extend(rot)
-                # execute the new sensor data handler
-                controller.handleTfTransformReceive(data, receiver)
+                try:
+                    # get a transform between me (tf_base_frame) and a another frame (tf_frame)
+                    (trans, rot) = controller.tfListener.lookupTransform(tf_base_frame, tf_frame, rospy.Time(0))
+                    #(trans, rot) = controller.tfListener.lookupTransform(tf_frame, tf_base_frame, rospy.Time(0))
+                    data = list(trans)
+                    # convert rotation from quaternion to euler angles
+                    rot = tf.transformations.euler_from_quaternion(rot)
+                    # convert angles from radians to degrees
+                    rot = [math.degrees(x) for x in rot]
+                    data.extend(rot)
+                    # execute the new sensor data handler
+                    controller.handleTfTransformReceive(data, receiver)
+                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                    rospy.logwarn("TF transform exception for frame %s. Skipping this frame" % tf_frame)
+                    continue
         else:
             rospy.logwarn("Base TF frame %s does not exist, SKIPPING ALL TF processing" % tf_base_frame)
 
