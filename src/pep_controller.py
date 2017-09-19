@@ -16,6 +16,7 @@ import rospy
 from std_msgs.msg import Int32 # for robotID topic
 from geometry_msgs.msg import Twist # for cmd_vel topic
 from sensor_msgs.msg import Range # for /proximity topic
+from sensor_msgs.msg import Imu # for /proximity topic
 from std_msgs.msg import UInt8MultiArray # for /cmd_led topic
 import thread # for lock (mutex)
 import pep # Numerical P system simulator
@@ -259,7 +260,7 @@ class Controller():
         self.effectors = effectors
         self.constants = constants
 
-        rospy.logdebug("interfaceWithDevices() Received parameter list of:\n sensors = %s\n effectors = %s\n constants = %s" % (sensors.keys(), effectors.keys(), constants.keys()))
+        rospy.loginfo("interfaceWithDevices() Received parameter list of:\n sensors = %s\n effectors = %s\n constants = %s" % (sensors.keys(), effectors.keys(), constants.keys()))
 
         sensorPobjects = []
         effectorPobjects = []
@@ -332,11 +333,36 @@ class Controller():
         """Distance sensor handler function that is called when receiving a message on a distance sensor topic
 
         :data: The contents of the message
-        :message_id: Sensor identifier (used as key in the messages dictionary)"""
+        :sensor_id: Sensor identifier (used as key in the messages dictionary)"""
 
         rospy.logdebug("recording new value from sensor %s" % sensor_id)
         self.sensors[sensor_id].setValue([data.range * 15])
     # end handleDistanceSensors()
+
+    def handleImuSensor(self, data, sensor_id):
+        """Inertial Measurement Unit sensor handle function that is called when receiving a message on a IMU topic
+
+        :data: The contents of the message
+        :sensor_id: Sensor identifier (used as key in the messages dictionary)"""
+
+        rospy.logdebug("recording new value from sensor %s" % sensor_id)
+
+        # convert orientation from quaternion to euler angles
+        orientation = tf.transformations.euler_from_quaternion([
+            data.orientation.x,
+            data.orientation.y,
+            data.orientation.z,
+            data.orientation.w])
+        #orientation = [0, 0, 0]
+        # convert angles from radians to degrees
+        orientation = [math.degrees(x) for x in orientation]
+        result = [data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z]
+        result.extend([data.linear_acceleration.x, data.linear_acceleration.y, data.linear_acceleration.z])
+        result.extend(orientation)
+        # execute the new sensor data handler
+        #rospy.loginfo("[handleIMU] sensors = %s, data=%s" % (self.sensors, data))
+        self.sensors[sensor_id].setValue(result)
+    # end handleImuSensors()
 
     def handleTfTransformReceive(self, data, sensor_id):
         """TF tranform receive handler function that is called when receiving a new transform
@@ -434,6 +460,27 @@ def pep_controller():
             rospy.Subscriber(dev_topic, Range, controller.handleDistanceSensors, dev_name)
     except KeyError:
         rospy.logwarn("No 'input_dev/range' (sensor_msgs.Range) sensors have been set/detected")
+
+    try:
+        rospy.get_param("input_dev/imu")
+        rospy.loginfo("Adding IMU receiver")
+        try:
+            linear_acceleration = rospy.get_param("input_dev/imu/linear_acceleration")
+            angular_velocity = rospy.get_param("input_dev/imu/angular_velocity")
+            orientation = rospy.get_param("input_dev/imu/orientation")
+            # sorted(dictionary) returns a list of dictionary keys sorted by their values
+            imu_pObjects = sorted(angular_velocity)
+            imu_pObjects.extend(sorted(linear_acceleration)) # concatenate the two lists
+            imu_pObjects.extend(sorted(orientation)) # concatenate the two lists
+
+            sensors["imu"] = Sensor(pObjects = imu_pObjects, topic = ("/Imu"))
+            # create a subscriber
+            rospy.Subscriber("/Imu", Imu, controller.handleImuSensor, "imu")
+        except KeyError:
+            rospy.logerr("One or more of the 'linear_acceleration' or 'angular_velocity' or 'orientation' groups have NOT been defined / detected within /input_dev/imu")
+            rospy.logwarn("Please define all three groups even if not used entirely in the controller")
+    except KeyError:
+        rospy.logwarn("No 'input_dev/imu' sensors have been set/detected")
 
     try:
         input_tf = rospy.get_param("input_dev/tf")

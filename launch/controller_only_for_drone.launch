@@ -1,0 +1,68 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/drone_init.pep"/>
+    <arg name="loop_rate_hz" default="10"/>
+
+    <group ns="constants">
+        <!--P object name (name) and topic name (value)-->
+        <!--<param name="cruiseSpeedLeft " value="5" />-->
+    </group>
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+        
+        <!-- default topic is /Imu -->
+        <group ns="imu">
+            <group ns="orientation">
+                <!--P object name (name) and axis name (value)-->
+                <param name="orientation_x" value="x" />
+                <param name="orientation_y" value="y" />
+                <param name="orientation_z" value="z" />
+            </group>
+            <group ns="linear_acceleration">
+                <!--P object name (name) and axis name (value)-->
+                <param name="acc_x" value="x" />
+                <param name="acc_y" value="y" />
+                <param name="acc_z" value="z" />
+            </group>
+            <group ns="angular_velocity">
+                <!--P object name (name) and axis name (value)-->
+                <param name="rot_x" value="x" />
+                <param name="rot_y" value="y" />
+                <param name="rot_z" value="z" />
+            </group>
+        </group>
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <!--<param name="robot_type" value="diff_drive" />-->
+        <!--P object to motor speed mapping-->
+        <group ns="cmd_vel">
+            <group ns="linear">
+                <param name="linear_x" value="x" />
+                <param name="linear_y" value="y" />
+                <param name="linear_z" value="z" />
+            </group>
+            <group ns="angular">
+                <param name="angular_x" value="x" />
+                <param name="angular_y" value="y" />
+                <param name="angular_z" value="z" />
+            </group>
+        </group>
+
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="/Imu" to="/ardrone/imu"/>
+        <!--<remap from="cmd_led" to="mobile_base/cmd_led"/>-->
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>
