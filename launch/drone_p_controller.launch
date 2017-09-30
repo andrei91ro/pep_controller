@@ -6,22 +6,16 @@
     <group ns="constants">
         <!--P object name (name) and topic name (value)-->
         <param name="target_linear_x" value="0.5" />
-        
+
         <param name="target_height" value="-1" />
+        <param name="kp_height" value="-0.2" />
         <!-- output value for 0 error-->
-        <param name="height_0" value="0" />
+        <param name="height_0" value="0" /> 
 
         <param name="target_angular_z" value="0.5" />
-        <param name="angular_0" value="0.5" />
-        <!--<param name="loop_freq_hz" value="$(arg loop_rate_hz)" />-->
-        <!--<param name="kp_height" value="-0.2" />-->
-        <param name="kp_height" value="-0.2" />
-        <!--<param name="ki_height" value="0.001" />-->
-
-        <!--<param name="kp_angular" value="0.75" />-->
-        <!--<param name="kp_angular" value="0.075" />-->
         <param name="kp_angular" value="0.2" />
-        <!--<param name="ki_angular" value="0.0" />-->
+        <!-- output value for 0 error-->
+        <param name="angular_0" value="0.5" />
     </group>
 
     <group ns="input_dev">

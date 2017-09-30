@@ -1,13 +1,14 @@
 num_ps = {
     # membrane names (labels)
-    H = {env, linear_prev, linear, angular};
+    H = {env, height_error, height, angular_error, angular};
 
     structure = [env
-            [linear_prev
-                [linear ]linear
-            ]linear_prev
-            [angular ]angular
-            #[height  ]height
+            [height_error
+                [height ]height
+            ]height_error
+            [angular_error
+                [angular ]angular
+            ]angular_error
     ]env;
 
     env = {
@@ -18,31 +19,31 @@ num_ps = {
         #pr = { -> 1|lw};
     #};
 
-    linear_prev = {
-        var = {tf_pos_x_0};
-        pr = { tf_pos_x_0 -> 1|tf_pos_x_prev };
+    height_error = {
+        var = {target_height, tf_pos_z, error_integral_height_0};
+        E = {e1, e2};
+        pr = { target_height - tf_pos_z [e1 -> ] 1|error_height };
+        pr = { 2 * (error_integral_height_0 + (target_height - tf_pos_z)) [e2 -> ] 1|error_integral_height_0 + 1|error_integral_height_1 };
+        E0 = {9999, 9999}; #TODO define ALWAYS_ON value to avoid vars > enzymes at some point
     };
 
-    linear = {
-        var = {tf_pos_x_1, tf_pos_x_prev, target_linear_x, loop_freq_hz, kp_linear, linear_x};
-        #pr = { linear_x + (kp_linear * (target_linear_x - ((abs(tf_pos_x_1) - abs(tf_pos_x_prev)) / 5)) * (linear_x < 1) ) -> 1|linear_x };
-        #pr = { linear_x + (kp_linear * (target_linear_x - abs((abs(tf_pos_x_1) - abs(tf_pos_x_prev)) / 5)) *
+    height = {
+        var = {kp_height, ki_height, error_height, error_integral_height_1, linear_z};
 
+        pr = { (kp_height * error_height + ki_height * error_integral_height_1)/(0-15) -> 1|linear_z };
+        #var0 = {0, 0, 0};
+    };
 
-        pr = { linear_x + (kp_linear * (target_linear_x - ((abs(tf_pos_x_1) - abs(tf_pos_x_prev)) * 10 ))) *
-                    #(linear_x < 1) -> 1|linear_x };
-        #pr = { linear_x + (kp_linear * (target_linear_x - ((abs(tf_pos_x_1) - abs(tf_pos_x_prev)) * 100 ))) *
-                    (linear_x < 1) -> 1|linear_x };
-        var0 = {0, 0, 0};
+    angular_error = {
+        var = {gyro_z, target_angular_z, error_integral_angular_0, error_integral_angular_1};
+        E = {e3, e4};
+        pr = { target_angular_z - gyro_z [e3 -> ] 1|error_angular};
+        pr = { 2 * (error_integral_angular_0 + (target_angular_z - gyro_z)) + error_integral_angular_1 * 0 [e4 -> ] 1|error_integral_angular_0 + 1|error_integral_angular_1};
+        E0 = {9999, 9999}; #TODO define ALWAYS_ON value to avoid vars > enzymes at some point
     };
 
     angular = {
-        var = {gyro_z, angular_z, target_angular_z, kp_angular};
-        pr = { kp_angular * (target_angular_z - gyro_z) -> 1|angular_z};
+        var = {gyro_z, angular_z, target_angular_z, kp_angular, ki_angular, error_angular, error_integral_angular_1};
+        pr = { kp_angular * error_angular + ki_angular * error_integral_angular_1 -> 1|angular_z};
     };
-
-    #height = {
-        #var = {height_z};
-        #pr = { 1.2 * atan2((trans_y_0) (trans_x_0)) + 0*angular_z-> 1|angular_z};
-    #};
 }
