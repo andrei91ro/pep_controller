@@ -23,6 +23,9 @@ import pep # Numerical P system simulator
 import time # for initial sleep
 import tf # for tf translation listener
 import math # for math.degrees()
+# The crazyflie uses special filetypes
+from crazyflie_driver.msg import Hover # crazyflie hover command
+from crazyflie_driver.msg import GenericLogData # crazyflie configurable log data (flowdeck or other internal fields)
 ##########################################################################
 # auxiliary definitions
 
@@ -385,6 +388,16 @@ class Controller():
         self.sensors[sensor_id].setValue([data.data])
     # end handleMessageReceiveFromRobot()
 
+    def handleGenericLogData(self, data, sensor_id):
+        """Handler function that is called whenever a new message arrives from another robot.
+
+        :data: The contents of the message
+        :sensor_id: Message identifier (used as key in the sensors dictionary)"""
+
+        rospy.logdebug("recording new value %s from sensor %s" % (data.values, sensor_id))
+        self.sensors[sensor_id].setValue(data.values)
+    # end handleGenericLogData()
+
     def runControlStep(self):
         """Executes one control step consisting of preparing input data, executing one P system simulation step and lastly publishing new output values
         :returns: True / False depending on the success of the execution"""
@@ -481,6 +494,16 @@ def pep_controller():
             rospy.logwarn("Please define all three groups even if not used entirely in the controller")
     except KeyError:
         rospy.logwarn("No 'input_dev/imu' sensors have been set/detected")
+
+    try:
+        generic_data = rospy.get_param("input_dev/GenericLogData")
+        rospy.loginfo("Adding GenericLogData (crazyflie) sensor")
+        generic_data = sorted(generic_data)
+        sensors["GenericLogData"] = Sensor(pObjects = generic_data, topic = "/GenericLogData")
+        # create a subscriber
+        rospy.Subscriber("/GenericLogData", GenericLogData, controller.handleGenericLogData, "GenericLogData")
+    except KeyError:
+        rospy.logwarn("No 'input_dev/GenericLogData' (crazyflie) sensors have been set/detected")
 
     try:
         input_tf = rospy.get_param("input_dev/tf")
