@@ -150,6 +150,34 @@ class EffectorDiffDriveMovement(Effector):
     # end updateValue()
 # end class EffectorDiffDriveMovement
 
+class EffectorCrazyflieHover(Effector):
+
+    """Effector for the Crazyflie Hover topic. Controlls the following numerical fields: vx, vy, yawrate, zDistance"""
+
+    def __init__(self, pObjects = None, topic = ""):
+        """Creates a new instance of the class based on a set of parameters
+            :pObjects: The P objects that the topic values will be linked to. Expects an array of 4 values (vx, vy, yawrate, zDistance)
+            :topic: The topic where this effector will publish"""
+        Effector.__init__(self, pObjects, topic)
+        self.publisher = rospy.Publisher(self.topic, Hover, queue_size=10)
+
+    def updateValue(self):
+        """Check the Pobject values for changes (since the previous simulation step) and publish a message if changes have occured"""
+
+        if (self.isNewValue()):
+            newValue = Hover()
+
+            newValue.vx = self.pObjects[0].value
+            newValue.vy = self.pObjects[1].value
+            newValue.yawrate = self.pObjects[2].value
+            newValue.zDistance = self.pObjects[3].value
+            #publish the newly constructed value
+            self.publisher.publish(newValue)
+
+        Effector.updateValue(self)
+    # end updateValue()
+# end class EffectorCrazyflieHover
+
 class EffectorTwistMovement(Effector):
 
     """Linear, angular (geometry_msgs.Twist) speeds movement effector
@@ -564,6 +592,12 @@ def pep_controller():
             rospy.logerr("Please define both linear and angular groups even if not used entirely in order to use the output device")
     except KeyError:
         rospy.logwarn("No 'output_dev/cmd_vel' effector has been set/detected")
+
+    try:
+        output_cmd_hover = rospy.get_param("output_dev/cmd_hover")
+        effectors["cmd_hover"] = EffectorCrazyflieHover(pObjects = output_cmd_hover.keys(), topic = "cmd_hover")
+    except KeyError:
+        rospy.logwarn("No 'output_dev/cmd_hover' effector has been set/detected")
 
     try:
         output_cmd_vel = rospy.get_param("output_dev/cmd_vel_diff_drive")
