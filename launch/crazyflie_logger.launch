@@ -1,0 +1,93 @@
+<launch>
+    <!--<arg name="pep_input_file" default="$(find pep_controller)src/pep_input/drone_init.pep"/>-->
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/crazyflie_logger.pep"/>
+    <arg name="loop_rate_hz" default="1"/>
+
+    <!--<group ns="constants">-->
+        <!--[>P object name (name) and topic name (value)<]-->
+        <!--<param name="target_linear_x" value="0.5" />-->
+
+        <!--<param name="target_height" value="-1" />-->
+        <!--<param name="kp_height" value="-0.2" />-->
+        <!--[> output value for 0 error<]-->
+        <!--<param name="height_0" value="0" /> -->
+
+        <!--<param name="target_angular_z" value="0.5" />-->
+        <!--<param name="kp_angular" value="0.2" />-->
+        <!--[> output value for 0 error<]-->
+        <!--<param name="angular_0" value="0.5" />-->
+    <!--</group>-->
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+
+        <group ns="GenericLogData">
+            <param name="x0" value="height"/>
+            <param name="x1" value="delta_x"/>
+            <param name="x2" value="delta_y"/>
+        </group>
+
+        <!-- default topic is /Imu -->
+        <group ns="imu">
+            <group ns="orientation">
+                <!--P object name (name) and axis name (value)-->
+                <param name="orientation_x" value="x" />
+                <param name="orientation_y" value="y" />
+                <param name="orientation_z" value="z" />
+            </group>
+            <group ns="linear_acceleration">
+                <!--P object name (name) and axis name (value)-->
+                <param name="acc_x" value="x" />
+                <param name="acc_y" value="y" />
+                <param name="acc_z" value="z" />
+            </group>
+            <group ns="angular_velocity">
+                <!--P object name (name) and axis name (value)-->
+                <param name="gyro_x" value="x" />
+                <param name="gyro_y" value="y" />
+                <param name="gyro_z" value="z" />
+            </group>
+        </group>
+
+        <group ns="tf">
+            <!--obtain the executing robot's position relative to each of the frames mentioned in the subgroups-->
+            <group ns="tf_receiver_0">
+                <param name="frame" value="tag_1" />
+                <group ns="translation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="tf_pos_x" value="x" />
+                    <param name="tf_pos_y" value="y" />
+                    <param name="tf_pos_z" value="z" />
+                </group>
+                <group ns="rotation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="tf_rot_x" value="x" />
+                    <param name="tf_rot_y" value="y" />
+                    <param name="tf_rot_z" value="z" />
+                </group>
+            </group>
+        </group>
+    </group>
+
+    <group ns="output_dev">
+        <group ns="cmd_hover">
+            <param name="vx" value="speedX" />
+            <param name="vy" value="speedY" />
+            <param name="yawrate" value="yawrate" />
+            <param name="zDistance" value="height" />
+        </group>
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+        <param name="tf_base_frame" value="drone"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="/Imu" to="/crazyflie/imu"/>
+        <remap from="/GenericLogData" to="/crazyflie/flowdeck"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>

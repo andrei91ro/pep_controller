@@ -1,0 +1,38 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/toggle_leds.pep"/>
+    <arg name="loop_rate_hz" default="10"/>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <param name="robot_type" value="diff_drive" />
+        <!--P object to motor speed mapping-->
+
+        <!--The 'cmd_led' topic is used to control all of the LEDs that are available on the standard e-puck
+            P object name (name) and LED number (value, one digit from 0 to 9)-->
+        <group ns="cmd_led">
+            <!--<param name="led0" value="0" />-->
+            <param name="led1" value="1" />
+            <!--<param name="led2" value="2" />-->
+            <!--<param name="led3" value="3" />-->
+            <!--<param name="led4" value="4" />-->
+            <!--<param name="led5" value="5" />-->
+            <!--<param name="led6" value="6" />-->
+            <param name="led7" value="7" />
+            <!--<param name="base" value="8" />-->
+            <!--<param name="front" value="9" />-->
+        </group>
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="cmd_led" to="mobile_base/cmd_led"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>

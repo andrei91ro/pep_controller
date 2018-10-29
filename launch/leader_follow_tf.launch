@@ -1,0 +1,79 @@
+<launch>
+    <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/leader_follow_tf.pep"/>
+    <arg name="loop_rate_hz" default="10"/>
+    <arg name="robotID"/>
+    <arg name="leader_tf"/>
+
+
+    <group ns="input_dev">
+        <!--P object name (name) and topic name (value)-->
+
+        <group ns="tf">
+            <!--obtain the executing robot's position relative to each of the frames mentioned in the subgroups-->
+            <group ns="leader_0">
+                <param name="frame" value="$(arg leader_tf)" />
+                <group ns="translation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="trans_x_0" value="x" />
+                    <param name="trans_y_0" value="y" />
+                    <param name="trans_z_0" value="z" />
+                </group>
+                <group ns="rotation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="rot_x_0" value="x" />
+                    <param name="rot_y_0" value="y" />
+                    <param name="rot_z_0" value="z" />
+                </group>
+            </group>
+            <group ns="leader_1">
+                <param name="frame" value="$(arg leader_tf)" />
+                <group ns="translation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="trans_x_1" value="x" />
+                    <param name="trans_y_1" value="y" />
+                    <param name="trans_z_1" value="z" />
+                </group>
+                <group ns="rotation">
+                    <!--P object name (name) and axis name (value)-->
+                    <param name="rot_x_1" value="x" />
+                    <param name="rot_y_1" value="y" />
+                    <param name="rot_z_1" value="z" />
+                </group>
+            </group>
+        </group>
+    </group>
+
+    <group ns="output_dev">
+        <!--cmd_vel is a default output topic that is remapped later on-->
+        <!--give the controller a hint on the cmd_vel values used by the robot
+        diff_drive means linear.x and angular.z are used-->
+        <param name="robot_type" value="diff_drive" />
+        <!--P object to motor speed mapping-->
+        <group ns="cmd_vel">
+            <group ns="linear">
+                <param name="linear_x" value="x" />
+                <param name="linear_y" value="y" />
+                <param name="linear_z" value="z" />
+            </group>
+            <group ns="angular">
+                <param name="angular_x" value="x" />
+                <param name="angular_y" value="y" />
+                <param name="angular_z" value="z" />
+            </group>
+        </group>
+    </group>
+
+	<node pkg="pep_controller" type="pep_controller.py" name="pep_control" output="screen">
+        <param name="pepInputFile" value="$(arg pep_input_file)"/>
+        <param name="loopRateHz" value="$(arg loop_rate_hz)"/>
+        <param name="robotID" value="$(arg robotID)"/>
+        <!--<param name="tf_base_frame" value="epuck_robot_$(arg robotID)/base_link"/>-->
+        <param name="tf_base_frame" value="epuck_$(arg robotID)/base_link"/>
+
+        <!--remap the cmd_vel output topic to that expected by epuck_driver-->
+        <remap from="cmd_vel" to="mobile_base/cmd_vel"/>
+	</node>
+
+	<!--<node pkg="rviz" type="rviz" name="rviz" />-->
+
+</launch>
