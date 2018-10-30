@@ -29,7 +29,7 @@ num_ps = {
     height = {
         var = {kp_height, ki_height, error_height_0, error_height_prev, height_cmd_prev};
         var0 = {1, 0.05, 0, 0, 0};
-        pr = { height_cmd_prev + (kp_height * error_height_0) + (ki_height * ((error_height_prev + error_height_0)/2) ) -> 1|height_raw };
+        pr = { height_cmd_prev + (kp_height * (error_height_0 - error_height_prev)) + (ki_height * ((error_height_0 + error_height_prev)/2) ) -> 1|height_raw };
     };
 
     height_error_prev = {
