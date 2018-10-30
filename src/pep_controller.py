@@ -85,7 +85,7 @@ class Sensor():
         self.lock.acquire() # lock mutex
         for i, pObject in enumerate(self.pObjects):
             pObject.value = self.currentValue[i]
-        self.currentValue = None # clear the current sensor measurement and wait for a new one
+        #self.currentValue = None # clear the current sensor measurement and wait for a new one
         self.lock.release() # unlock mutex
     # end updatePobject()
 # end class Sensor
@@ -164,15 +164,15 @@ class EffectorCrazyflieHover(Effector):
     def updateValue(self):
         """Check the Pobject values for changes (since the previous simulation step) and publish a message if changes have occured"""
 
-        if (self.isNewValue()):
-            newValue = Hover()
+        #if (self.isNewValue()):
+        newValue = Hover()
 
-            newValue.vx = self.pObjects[0].value
-            newValue.vy = self.pObjects[1].value
-            newValue.yawrate = self.pObjects[2].value
-            newValue.zDistance = self.pObjects[3].value
-            #publish the newly constructed value
-            self.publisher.publish(newValue)
+        newValue.vx = self.pObjects[0].value
+        newValue.vy = self.pObjects[1].value
+        newValue.yawrate = self.pObjects[2].value
+        newValue.zDistance = self.pObjects[3].value
+        #publish the newly constructed value
+        self.publisher.publish(newValue)
 
         Effector.updateValue(self)
     # end updateValue()
@@ -458,9 +458,21 @@ class Controller():
     # end runControlStep()
 # end class Controller
 
+flyHover = None # Crazyflie Hover publisher (needed to land on shutdown)
+def onShutdown():
+    global flyHover
+
+    cmd = Hover()
+    cmd.zDistance = 0.1
+    rospy.loginfo("\n\n LANDING cmd = [%.2f, %.2f, %.2f]" % (cmd.vx, cmd.vy, cmd.zDistance))
+    flyHover.publish(cmd)
+
 def pep_controller():
+    global flyHover
+
     rospy.init_node('pep_controller')
     #rospy.init_node('pep_controller', log_level=rospy.DEBUG)
+    rospy.on_shutdown(onShutdown)
 
     # read all parameters
     rate = rospy.Rate(rospy.get_param("~loopRateHz")) # 10hz default
@@ -596,6 +608,7 @@ def pep_controller():
     try:
         output_cmd_hover = rospy.get_param("output_dev/cmd_hover")
         effectors["cmd_hover"] = EffectorCrazyflieHover(pObjects = output_cmd_hover.keys(), topic = "cmd_hover")
+        flyHover = effectors["cmd_hover"].publisher
     except KeyError:
         rospy.logwarn("No 'output_dev/cmd_hover' effector has been set/detected")
 

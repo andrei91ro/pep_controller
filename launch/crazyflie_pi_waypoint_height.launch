@@ -1,7 +1,7 @@
 <launch>
     <!--<arg name="pep_input_file" default="$(find pep_controller)src/pep_input/drone_init.pep"/>-->
     <arg name="pep_input_file" default="$(find pep_controller)src/pep_input/crazyflie_pi_waypoint_height.pep"/>
-    <arg name="loop_rate_hz" default="30"/>
+    <arg name="loop_rate_hz" default="20"/>
 
     <group ns="constants">
         <param name="kp_height" value="1" />
