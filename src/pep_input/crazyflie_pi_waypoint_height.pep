@@ -7,7 +7,6 @@ num_ps = {
             [height_error
                 [height
                     [height_error_prev ]height_error_prev
-                    [filter ]filter
                 ]height
             ]height_error
         ]tf_save
