@@ -10,7 +10,7 @@ The `pep.py` script must be placed in the `src` folder.
 
 This package uses ROS Parameters to define the connection between the controller and ROS, as shown in the diagram below:
 
-[pep_controller_diagram](https://github.com/andrei91ro/pep_controller/blob/master/diagram.png)
+![pep_controller_diagram](https://github.com/andrei91ro/pep_controller/blob/master/diagram.png)
 
 More specifically, starting from a skeleton launch file such as:
 ```xml
